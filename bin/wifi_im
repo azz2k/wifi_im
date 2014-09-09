@@ -5,33 +5,39 @@ from nav_msgs.msg import OccupancyGrid
 from nav_msgs.msg import Odometry
 import numpy as np
 from matplotlib import pyplot as plt
+import Queue
 
-def callbackMap(data):
-  global ogrid
-  rospy.loginfo(rospy.get_caller_id()+"I heddard %s", data.info.width)
-  ogrid = np.array(data.data, dtype=np.int8)
-  ogrid = ogrid.reshape((data.info.height, data.info.width))
-def callbackPos(data):
-  global pos
-  rospy.loginfo(rospy.get_caller_id()+"I heddard %s", data.pose.pose.position.x)
-  pos = [data.pose.pose.position.x, data.pose.pose.position.y]
-
-ogrid = np.zeros((1,1))
-pos = []
+class WifiIM:
+  def __init__(self):
+    rospy.init_node("wifi_im", anonymous=True)
+    self.msg_queue = Queue.Queue()
+    self.ogrid = np.zeros((1, 1))
+    self.pos = [0, 0]
+    rospy.Subscriber("map", OccupancyGrid, self.callbackMap)
+    rospy.Subscriber("odom", Odometry, self.callbackPos)
+    r = rospy.Rate(1)
+    plt.ion()
+    while not rospy.is_shutdown():
+      while not self.msg_queue.empty():
+        data = self.msg_queue.get()
+        if data[0] == "OccupancyGrid":
+          self.ogrid = np.array(data[1].data, dtype=np.int8)
+          self.ogrid = self.ogrid.reshape((data[1].info.height, data[1].info.width))
+        elif data[0] == "Odomenty":
+          self.pos = [data[1].pose.pose.position.x, data[1].pose.pose.position.y]
+      print self.ogrid.shape
+      plt.clf()
+      plt.imshow(self.ogrid, cmap=plt.cm.binary)
+      plt.plot(self.pos[0]/0.01, self.pos[1]/0.01, "r*")
+      plt.draw()
+      r.sleep()
+  def callbackMap(self, data):
+    self.msg_queue.put(["OccupancyGrid", data])
+  def callbackPos(self, data):
+    self.msg_queue.put(["Odometry", data])
 
 if __name__ == "__main__":
-  global ogrid
-  global pos
-  rospy.init_node("wifi_im", anonymous=True)
-  rospy.Subscriber("map", OccupancyGrid, callbackMap)
-  rospy.Subscriber("odom", Odometry, callbackPos)
-  r = rospy.Rate(1)
-  plt.ion()
-  while not rospy.is_shutdown():
-    print ogrid.shape
-    plt.clf()
-    plt.imshow(ogrid, cmap=plt.cm.binary)
-    plt.plot(pos[0]/0.01, pos[1]/0.01, "r*")
-    plt.draw()
-    r.sleep()
-  rospy.spin()
+  try:
+    wifi_im = WifiIM()
+  except rospy.ROSInterruptException:
+    pass
