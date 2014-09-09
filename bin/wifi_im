@@ -19,6 +19,7 @@ class WifiIM:
     rospy.Subscriber("odom", Odometry, self.callbackPos)
     r = rospy.Rate(1)
     plt.ion()
+    plt.gcf().canvas._tkcanvas.master.geometry("1000x1200")
     while not rospy.is_shutdown():
       while not self.msg_queue.empty():
         data = self.msg_queue.get()
@@ -31,8 +32,10 @@ class WifiIM:
           self.pos = [data[1].pose.pose.position.x, data[1].pose.pose.position.y]
       print self.ogrid.shape
       plt.clf()
-      plt.imshow(self.ogrid, cmap=plt.cm.binary)
-      plt.plot((self.origin[0] + self.pos[0])/self.resolution, (self.origin[1] + self.pos[1])/self.resolution, "r*")
+      plt.imshow(self.ogrid, cmap=plt.cm.binary, origin="lower")
+      plt.plot((self.pos[0] - self.origin[0])/self.resolution, (self.pos[1] - self.origin[1])/self.resolution, "r*")
+      plt.gca().set_xlim((0, 3200))
+      plt.gca().set_ylim((0, 4500))
       plt.draw()
       r.sleep()
   def callbackMap(self, data):
