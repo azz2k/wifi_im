@@ -28,9 +28,9 @@ class WifiIM:
           self.ogrid = self.ogrid.reshape((data[1].info.height, data[1].info.width))
           self.resolution = data[1].info.resolution
           self.origin = [data[1].info.origin.position.x, data[1].info.origin.position.y]
-        elif data[0] == "Odomenty":
+        elif data[0] == "Odometry":
           self.pos = [data[1].pose.pose.position.x, data[1].pose.pose.position.y]
-      print self.ogrid.shape
+      print self.ogrid.shape, self.pos
       plt.clf()
       plt.imshow(self.ogrid, cmap=plt.cm.binary, origin="lower")
       plt.plot((self.pos[0] - self.origin[0])/self.resolution, (self.pos[1] - self.origin[1])/self.resolution, "r*")
