@@ -1,0 +1,17 @@
+#!/usr/bin/env python
+
+import rospy
+from nav_msgs.msg import OccupancyGrid
+from nav_msgs.msg import Odometry
+
+def callbackMap(data):
+  rospy.loginfo(rospy.get_caller_id()+"I heddard %s", data.info.width)
+
+def callbackPos(data):
+  rospy.loginfo(rospy.get_caller_id()+"I heddard %s", data.pose.pose.position.x)
+
+if __name__ == "__main__":
+  rospy.init_node("wifi_im", anonymous=True)
+  rospy.Subscriber("map", OccupancyGrid, callbackMap)
+  rospy.Subscriber("odom", Odometry, callbackPos)
+  rospy.spin()
