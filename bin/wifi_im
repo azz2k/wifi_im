@@ -12,6 +12,8 @@ class WifiIM:
     rospy.init_node("wifi_im", anonymous=True)
     self.msg_queue = Queue.Queue()
     self.ogrid = np.zeros((1, 1))
+    self.resolution = 0.1
+    self.origin = [0, 0]
     self.pos = [0, 0]
     rospy.Subscriber("map", OccupancyGrid, self.callbackMap)
     rospy.Subscriber("odom", Odometry, self.callbackPos)
@@ -23,12 +25,14 @@ class WifiIM:
         if data[0] == "OccupancyGrid":
           self.ogrid = np.array(data[1].data, dtype=np.int8)
           self.ogrid = self.ogrid.reshape((data[1].info.height, data[1].info.width))
+          self.resolution = data[1].info.resolution
+          self.origin = [data[1].info.origin.position.x, data[1].info.origin.position.y]
         elif data[0] == "Odomenty":
           self.pos = [data[1].pose.pose.position.x, data[1].pose.pose.position.y]
       print self.ogrid.shape
       plt.clf()
       plt.imshow(self.ogrid, cmap=plt.cm.binary)
-      plt.plot(self.pos[0]/0.01, self.pos[1]/0.01, "r*")
+      plt.plot((self.origin[0] + self.pos[0])/self.resolution, (self.origin[1] + self.pos[1])/self.resolution, "r*")
       plt.draw()
       r.sleep()
   def callbackMap(self, data):
