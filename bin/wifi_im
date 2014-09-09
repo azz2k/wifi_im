@@ -3,15 +3,35 @@
 import rospy
 from nav_msgs.msg import OccupancyGrid
 from nav_msgs.msg import Odometry
+import numpy as np
+from matplotlib import pyplot as plt
 
 def callbackMap(data):
+  global ogrid
   rospy.loginfo(rospy.get_caller_id()+"I heddard %s", data.info.width)
-
+  ogrid = np.array(data.data, dtype=np.int8)
+  ogrid = ogrid.reshape((data.info.height, data.info.width))
 def callbackPos(data):
+  global pos
   rospy.loginfo(rospy.get_caller_id()+"I heddard %s", data.pose.pose.position.x)
+  pos = [data.pose.pose.position.x, data.pose.pose.position.y]
+
+ogrid = np.zeros((1,1))
+pos = []
 
 if __name__ == "__main__":
+  global ogrid
+  global pos
   rospy.init_node("wifi_im", anonymous=True)
   rospy.Subscriber("map", OccupancyGrid, callbackMap)
   rospy.Subscriber("odom", Odometry, callbackPos)
+  r = rospy.Rate(1)
+  plt.ion()
+  while not rospy.is_shutdown():
+    print ogrid.shape
+    plt.clf()
+    plt.imshow(ogrid, cmap=plt.cm.binary)
+    plt.plot(pos[0]/0.01, pos[1]/0.01, "r*")
+    plt.draw()
+    r.sleep()
   rospy.spin()
