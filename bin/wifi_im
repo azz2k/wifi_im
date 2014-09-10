@@ -64,7 +64,9 @@ class WifiIM:
         newx = (self.pose.pose.position.x - self.origin.position.x)/self.resolution + 150 * math.cos(yaw)
         newy = (self.pose.pose.position.y - self.origin.position.y)/self.resolution + 150 * math.sin(yaw)
         # TODO: check why ogrid is transposed
-        if self.ogrid[newy, newx] == 0:
+        # look at the average for clearer results around walls and complicated objects
+        window = int(0.5/self.resolution)/2
+        if np.mean(self.ogrid[newy-window:newy+window, newx-window:newx+window]) == 0:
           print newx, newy
           self.goto(newx, newy, yaw)
           break
