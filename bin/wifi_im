@@ -13,6 +13,8 @@ from move_base_msgs.msg import *
 import numpy as np
 from matplotlib import pyplot as plt
 import Queue
+import random
+import math
 
 class WifiIM:
   def __init__(self):
@@ -20,6 +22,9 @@ class WifiIM:
     # misc variables
     self.tflistener = tf.TransformListener()
     self.pose = PoseStamped()
+    # msg stuff
+    self.msg_queue = Queue.Queue()
+    rospy.Subscriber("/amcl_pose", PoseWithCovarianceStamped, self.callbackPos)
     # get map
     print "waiting for map"
     rospy.wait_for_service("/static_map")
@@ -32,9 +37,6 @@ class WifiIM:
     self.origin = get_map_response.map.info.origin
     del get_map_service
     del get_map_response
-    # msg stuff
-    self.msg_queue = Queue.Queue()
-    rospy.Subscriber("/amcl_pose", PoseWithCovarianceStamped, self.callbackPos)
     # main loop
     self.run()
   def run(self):
@@ -42,6 +44,7 @@ class WifiIM:
     plt.ion()
     plt.gcf().canvas._tkcanvas.master.geometry("1000x1200")
     while not rospy.is_shutdown():
+      print rospy.Time.now()
       while not self.msg_queue.empty():
         data = self.msg_queue.get()
         if data[0] == "amcl_pose":
@@ -50,14 +53,23 @@ class WifiIM:
           pose.pose = data[1].pose.pose
           self.pose = pose
       plt.clf()
-      plt.imshow(self.ogrid, cmap=plt.cm.binary, origin="lower")
+      plt.imshow(self.ogrid, cmap=plt.cm.binary, origin="lower", vmin=-1, vmax=1)
       plt.plot((self.pose.pose.position.x - self.origin.position.x)/self.resolution, (self.pose.pose.position.y - self.origin.position.y)/self.resolution, "r*")
+      cbar = plt.colorbar()
       plt.gca().set_xlim((0, 3200))
       plt.gca().set_ylim((0, 4500))
       plt.draw()
-      self.goto((self.pose.pose.position.x - self.origin.position.x)/self.resolution + 50, (self.pose.pose.position.y - self.origin.position.y)/self.resolution)
+      for i in range(100):
+        yaw = random.uniform(-math.pi, math.pi)
+        newx = (self.pose.pose.position.x - self.origin.position.x)/self.resolution + 50 * math.cos(yaw)
+        newy = (self.pose.pose.position.y - self.origin.position.y)/self.resolution + 50 * math.sin(yaw)
+        # TODO: check why ogrid is transposed
+        if self.ogrid[newy, newx] == 0:
+          print newx, newy
+          self.goto(newx, newy, yaw)
+          break
       r.sleep()
-  def goto(self, x, y):
+  def goto(self, x, y, yaw):
     print "goto", x, y, x * self.resolution + self.origin.position.x, y * self.resolution + self.origin.position.y
     client = actionlib.SimpleActionClient("/move_base", MoveBaseAction)
     client.wait_for_server()
@@ -67,10 +79,11 @@ class WifiIM:
     goal.target_pose.pose.position.x = x * self.resolution + self.origin.position.x
     goal.target_pose.pose.position.y = y * self.resolution + self.origin.position.y
     goal.target_pose.pose.position.z = self.pose.pose.position.z
-    goal.target_pose.pose.orientation.w = self.pose.pose.orientation.w
-    goal.target_pose.pose.orientation.x = self.pose.pose.orientation.x
-    goal.target_pose.pose.orientation.y = self.pose.pose.orientation.y
-    goal.target_pose.pose.orientation.z = self.pose.pose.orientation.z
+    quaternion = tf.transformations.quaternion_from_euler(yaw, 0.0, 0.0)
+    goal.target_pose.pose.orientation.w = quaternion[0]
+    goal.target_pose.pose.orientation.x = quaternion[1]
+    goal.target_pose.pose.orientation.y = quaternion[2]
+    goal.target_pose.pose.orientation.z = quaternion[3]
     client.send_goal(goal)
     client.wait_for_result()
   def callbackPos(self, data):
