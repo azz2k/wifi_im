@@ -16,11 +16,9 @@ class WifiIM:
     self.ogrid = np.zeros((1, 1))
     self.resolution = 0.1
     self.pose = PoseStamped()
+    self.tflistener = tf.TransformListener()
     rospy.Subscriber("map", OccupancyGrid, self.callbackMap)
     rospy.Subscriber("amcl_pose", PoseWithCovarianceStamped, self.callbackPos)
-    tflistener = tf.TransformListener()
-    print "sleeping for 5sec to wait for TransformListener buffer to fill up"
-    rospy.sleep(5)
     r = rospy.Rate(5)
     plt.ion()
     plt.gcf().canvas._tkcanvas.master.geometry("1000x1200")
@@ -35,7 +33,6 @@ class WifiIM:
           pose = PoseStamped()
           pose.header = data[1].header
           pose.pose = data[1].pose.pose
-      self.pose = tflistener.transformPose("/map", pose)
       print self.ogrid.shape, self.pose
       plt.clf()
       plt.imshow(self.ogrid, cmap=plt.cm.binary, origin="lower")
