@@ -3,9 +3,11 @@
 import rospy
 from nav_msgs.msg import OccupancyGrid
 from nav_msgs.msg import Odometry
+from geometry_msgs.msg import PoseStamped
 import numpy as np
 from matplotlib import pyplot as plt
 import Queue
+import tf
 
 class WifiIM:
   def __init__(self):
@@ -13,11 +15,13 @@ class WifiIM:
     self.msg_queue = Queue.Queue()
     self.ogrid = np.zeros((1, 1))
     self.resolution = 0.1
-    self.origin = [0, 0]
-    self.pos = [0, 0]
+    self.pose = PoseStamped()
     rospy.Subscriber("map", OccupancyGrid, self.callbackMap)
     rospy.Subscriber("odom", Odometry, self.callbackPos)
-    r = rospy.Rate(1)
+    tflistener = tf.TransformListener()
+    print "sleeping for 5sec to wait for TransformListener buffer to fill up"
+    rospy.sleep(5)
+    r = rospy.Rate(5)
     plt.ion()
     plt.gcf().canvas._tkcanvas.master.geometry("1000x1200")
     while not rospy.is_shutdown():
@@ -27,13 +31,15 @@ class WifiIM:
           self.ogrid = np.array(data[1].data, dtype=np.int8)
           self.ogrid = self.ogrid.reshape((data[1].info.height, data[1].info.width))
           self.resolution = data[1].info.resolution
-          self.origin = [data[1].info.origin.position.x, data[1].info.origin.position.y]
         elif data[0] == "Odometry":
-          self.pos = [data[1].pose.pose.position.x, data[1].pose.pose.position.y]
-      print self.ogrid.shape, self.pos
+          pose = PoseStamped()
+          pose.header = data[1].header
+          pose.pose = data[1].pose.pose
+      self.pose = tflistener.transformPose("/map", pose)
+      print self.ogrid.shape, self.pose
       plt.clf()
       plt.imshow(self.ogrid, cmap=plt.cm.binary, origin="lower")
-      plt.plot((self.pos[0] - self.origin[0])/self.resolution, (self.pos[1] - self.origin[1])/self.resolution, "r*")
+      plt.plot((self.pose.pose.position.x)/self.resolution, (self.pose.pose.position.y)/self.resolution, "r*")
       plt.gca().set_xlim((0, 3200))
       plt.gca().set_ylim((0, 4500))
       plt.draw()
