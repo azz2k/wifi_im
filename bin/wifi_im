@@ -1,14 +1,18 @@
 #!/usr/bin/env python
 
+# ros
 import rospy
+import tf
+import actionlib
 from nav_msgs.msg import OccupancyGrid
 from nav_msgs.srv import GetMap
 from geometry_msgs.msg import PoseStamped
 from geometry_msgs.msg import PoseWithCovarianceStamped
+from move_base_msgs.msg import *
+# other stuff
 import numpy as np
 from matplotlib import pyplot as plt
 import Queue
-import tf
 
 class WifiIM:
   def __init__(self):
@@ -32,6 +36,8 @@ class WifiIM:
     self.msg_queue = Queue.Queue()
     rospy.Subscriber("/amcl_pose", PoseWithCovarianceStamped, self.callbackPos)
     # main loop
+    self.run()
+  def run(self):
     r = rospy.Rate(5)
     plt.ion()
     plt.gcf().canvas._tkcanvas.master.geometry("1000x1200")
@@ -49,7 +55,24 @@ class WifiIM:
       plt.gca().set_xlim((0, 3200))
       plt.gca().set_ylim((0, 4500))
       plt.draw()
+      self.goto((self.pose.pose.position.x - self.origin.position.x)/self.resolution + 50, (self.pose.pose.position.y - self.origin.position.y)/self.resolution)
       r.sleep()
+  def goto(self, x, y):
+    print "goto", x, y, x * self.resolution + self.origin.position.x, y * self.resolution + self.origin.position.y
+    client = actionlib.SimpleActionClient("/move_base", MoveBaseAction)
+    client.wait_for_server()
+    goal = MoveBaseGoal()
+    goal.target_pose.header.frame_id = "/map"
+    goal.target_pose.header.stamp = rospy.Time.now()
+    goal.target_pose.pose.position.x = x * self.resolution + self.origin.position.x
+    goal.target_pose.pose.position.y = y * self.resolution + self.origin.position.y
+    goal.target_pose.pose.position.z = self.pose.pose.position.z
+    goal.target_pose.pose.orientation.w = self.pose.pose.orientation.w
+    goal.target_pose.pose.orientation.x = self.pose.pose.orientation.x
+    goal.target_pose.pose.orientation.y = self.pose.pose.orientation.y
+    goal.target_pose.pose.orientation.z = self.pose.pose.orientation.z
+    client.send_goal(goal)
+    client.wait_for_result()
   def callbackPos(self, data):
     print "amcl_pose"
     self.msg_queue.put(["amcl_pose", data])
