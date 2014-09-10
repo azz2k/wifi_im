@@ -2,6 +2,7 @@
 
 import rospy
 from nav_msgs.msg import OccupancyGrid
+from nav_msgs.srv import GetMap
 from geometry_msgs.msg import Pose
 from geometry_msgs.msg import PoseStamped
 from geometry_msgs.msg import PoseWithCovarianceStamped
@@ -13,26 +14,32 @@ import tf
 class WifiIM:
   def __init__(self):
     rospy.init_node("wifi_im", anonymous=True)
-    self.msg_queue = Queue.Queue()
-    self.ogrid = np.zeros((1, 1))
-    self.resolution = 0.1
-    self.origin = Pose()
-    self.pose = PoseStamped()
+    # misc variables
     self.tflistener = tf.TransformListener()
-    rospy.Subscriber("/map", OccupancyGrid, self.callbackMap)
+    self.pose = PoseStamped()
+    # get map
+    print "waiting for map"
+    rospy.wait_for_service("/static_map")
+    get_map_service  = rospy.ServiceProxy("/static_map", GetMap)
+    get_map_response = get_map_service()
+    print "got map"
+    self.ogrid = np.array(get_map_response.map.data, dtype=np.int8)
+    self.ogrid = self.ogrid.reshape((get_map_response.map.info.height, get_map_response.map.info.width))
+    self.resolution = get_map_response.map.info.resolution
+    self.origin = get_map_response.map.info.origin
+    del get_map_service
+    del get_map_response
+    # msg stuff
+    self.msg_queue = Queue.Queue()
     rospy.Subscriber("/amcl_pose", PoseWithCovarianceStamped, self.callbackPos)
+    # main loop
     r = rospy.Rate(5)
     plt.ion()
     plt.gcf().canvas._tkcanvas.master.geometry("1000x1200")
     while not rospy.is_shutdown():
       while not self.msg_queue.empty():
         data = self.msg_queue.get()
-        if data[0] == "OccupancyGrid":
-          self.ogrid = np.array(data[1].data, dtype=np.int8)
-          self.ogrid = self.ogrid.reshape((data[1].info.height, data[1].info.width))
-          self.resolution = data[1].info.resolution
-          self.origin = data[1].info.origin
-        elif data[0] == "amcl_pose":
+        if data[0] == "amcl_pose":
           pose = PoseStamped()
           pose.header = data[1].header
           pose.pose = data[1].pose.pose
@@ -44,9 +51,6 @@ class WifiIM:
       plt.gca().set_ylim((0, 4500))
       plt.draw()
       r.sleep()
-  def callbackMap(self, data):
-    print "map"
-    self.msg_queue.put(["OccupancyGrid", data])
   def callbackPos(self, data):
     print "amcl_pose"
     self.msg_queue.put(["amcl_pose", data])
