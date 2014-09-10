@@ -2,8 +2,8 @@
 
 import rospy
 from nav_msgs.msg import OccupancyGrid
-from nav_msgs.msg import Odometry
 from geometry_msgs.msg import PoseStamped
+from geometry_msgs.msg import PoseWithCovarianceStamped
 import numpy as np
 from matplotlib import pyplot as plt
 import Queue
@@ -17,7 +17,7 @@ class WifiIM:
     self.resolution = 0.1
     self.pose = PoseStamped()
     rospy.Subscriber("map", OccupancyGrid, self.callbackMap)
-    rospy.Subscriber("odom", Odometry, self.callbackPos)
+    rospy.Subscriber("amcl_pose", PoseWithCovarianceStamped, self.callbackPos)
     tflistener = tf.TransformListener()
     print "sleeping for 5sec to wait for TransformListener buffer to fill up"
     rospy.sleep(5)
@@ -31,7 +31,7 @@ class WifiIM:
           self.ogrid = np.array(data[1].data, dtype=np.int8)
           self.ogrid = self.ogrid.reshape((data[1].info.height, data[1].info.width))
           self.resolution = data[1].info.resolution
-        elif data[0] == "Odometry":
+        elif data[0] == "amcl_pose":
           pose = PoseStamped()
           pose.header = data[1].header
           pose.pose = data[1].pose.pose
@@ -47,7 +47,7 @@ class WifiIM:
   def callbackMap(self, data):
     self.msg_queue.put(["OccupancyGrid", data])
   def callbackPos(self, data):
-    self.msg_queue.put(["Odometry", data])
+    self.msg_queue.put(["amcl_pose", data])
 
 if __name__ == "__main__":
   try:
