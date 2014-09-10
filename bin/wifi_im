@@ -61,8 +61,8 @@ class WifiIM:
       plt.draw()
       for i in range(100):
         yaw = random.uniform(-math.pi, math.pi)
-        newx = (self.pose.pose.position.x - self.origin.position.x)/self.resolution + 50 * math.cos(yaw)
-        newy = (self.pose.pose.position.y - self.origin.position.y)/self.resolution + 50 * math.sin(yaw)
+        newx = (self.pose.pose.position.x - self.origin.position.x)/self.resolution + 150 * math.cos(yaw)
+        newy = (self.pose.pose.position.y - self.origin.position.y)/self.resolution + 150 * math.sin(yaw)
         # TODO: check why ogrid is transposed
         if self.ogrid[newy, newx] == 0:
           print newx, newy
