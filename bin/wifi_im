@@ -2,6 +2,7 @@
 
 import rospy
 from nav_msgs.msg import OccupancyGrid
+from geometry_msgs.msg import Pose
 from geometry_msgs.msg import PoseStamped
 from geometry_msgs.msg import PoseWithCovarianceStamped
 import numpy as np
@@ -15,10 +16,11 @@ class WifiIM:
     self.msg_queue = Queue.Queue()
     self.ogrid = np.zeros((1, 1))
     self.resolution = 0.1
+    self.origin = Pose()
     self.pose = PoseStamped()
     self.tflistener = tf.TransformListener()
-    rospy.Subscriber("map", OccupancyGrid, self.callbackMap)
-    rospy.Subscriber("amcl_pose", PoseWithCovarianceStamped, self.callbackPos)
+    rospy.Subscriber("/map", OccupancyGrid, self.callbackMap)
+    rospy.Subscriber("/amcl_pose", PoseWithCovarianceStamped, self.callbackPos)
     r = rospy.Rate(5)
     plt.ion()
     plt.gcf().canvas._tkcanvas.master.geometry("1000x1200")
@@ -29,21 +31,24 @@ class WifiIM:
           self.ogrid = np.array(data[1].data, dtype=np.int8)
           self.ogrid = self.ogrid.reshape((data[1].info.height, data[1].info.width))
           self.resolution = data[1].info.resolution
+          self.origin = data[1].info.origin
         elif data[0] == "amcl_pose":
           pose = PoseStamped()
           pose.header = data[1].header
           pose.pose = data[1].pose.pose
-      print self.ogrid.shape, self.pose
+          self.pose = pose
       plt.clf()
       plt.imshow(self.ogrid, cmap=plt.cm.binary, origin="lower")
-      plt.plot((self.pose.pose.position.x)/self.resolution, (self.pose.pose.position.y)/self.resolution, "r*")
+      plt.plot((self.pose.pose.position.x - self.origin.position.x)/self.resolution, (self.pose.pose.position.y - self.origin.position.y)/self.resolution, "r*")
       plt.gca().set_xlim((0, 3200))
       plt.gca().set_ylim((0, 4500))
       plt.draw()
       r.sleep()
   def callbackMap(self, data):
+    print "map"
     self.msg_queue.put(["OccupancyGrid", data])
   def callbackPos(self, data):
+    print "amcl_pose"
     self.msg_queue.put(["amcl_pose", data])
 
 if __name__ == "__main__":
