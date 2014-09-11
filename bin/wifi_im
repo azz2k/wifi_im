@@ -76,10 +76,12 @@ class WifiIM:
         window = int(0.5/self.resolution)/2
         if np.mean(self.ogrid[newy-window:newy+window, newx-window:newx+window]) == 0:
           print newx, newy
-          self.goto(newx, newy, yaw)
+          self.goto_map(newx, newy, yaw)
           break
       r.sleep()
-  def goto(self, x, y, yaw):
+  def goto_real(self, x, y, yaw):
+    self.goto_map(self, (x-self.origin.position.x)/self.resolution, (y-self.origin.position.y)/self.resolution, yaw)
+  def goto_map(self, x, y, yaw):
     print "goto", x * self.resolution + self.origin.position.x, y * self.resolution + self.origin.position.y, yaw
     client = actionlib.SimpleActionClient("/move_base", MoveBaseAction)
     client.wait_for_server()
