@@ -37,17 +37,9 @@ class WifiIM:
     self.origin = get_map_response.map.info.origin
     del get_map_service
     del get_map_response
-    grid_goals = self.generate_grid(0.5, 0.5)
-    plt.imshow(self.ogrid, cmap=plt.cm.binary, origin="lower", vmin=-1, vmax=1)
-    for goal in grid_goals:
-      plt.plot(goal[0], goal[1], "b.")
-    plt.gca().set_xlim((0, 3200))
-    plt.gca().set_ylim((0, 4500))
-    plt.show()
-    return
     # main loop
-    self.run()
-  def run(self):
+    self.run_sample_grid()
+  def run_random_directions(self):
     r = rospy.Rate(5)
     plt.ion()
     plt.gcf().canvas._tkcanvas.master.geometry("1000x1200")
@@ -79,6 +71,35 @@ class WifiIM:
           self.goto_map(newx, newy, yaw)
           break
       r.sleep()
+  def run_sample_grid(self):
+    grid_goals = self.generate_grid(0.5, 0.5)
+    plt.ion()
+    plt.gcf().canvas._tkcanvas.master.geometry("1000x1200")
+    plt.imshow(self.ogrid, cmap=plt.cm.binary, origin="lower", vmin=-1, vmax=1)
+    cbar = plt.colorbar()
+    plt.gca().set_xlim((0, 3200))
+    plt.gca().set_ylim((0, 4500))
+    for goal in grid_goals:
+      print rospy.Time.now()
+      if rospy.is_shutdown():
+        break
+      while not self.msg_queue.empty():
+        data = self.msg_queue.get()
+        if data[0] == "amcl_pose":
+          pose = PoseStamped()
+          pose.header = data[1].header
+          pose.pose = data[1].pose.pose
+          self.pose = pose
+      plt.plot((self.pose.pose.position.x - self.origin.position.x)/self.resolution, (self.pose.pose.position.y - self.origin.position.y)/self.resolution, "r.")
+      plt.draw()
+      currx = (self.pose.pose.position.x - self.origin.position.x)/self.resolution
+      curry = (self.pose.pose.position.y - self.origin.position.y)/self.resolution
+      yaw = math.pi-atan2(goal[0] - currx, goal[1] - curry)
+      if yaw < math.pi:
+        yaw = yaw + 2*math.pi
+      if yaw > math.pi:
+        yaw = yaw - 2*math.pi
+      self.goto_map(goal[0], goal[1], yaw)
   def goto_real(self, x, y, yaw):
     self.goto_map(self, (x-self.origin.position.x)/self.resolution, (y-self.origin.position.y)/self.resolution, yaw)
   def goto_map(self, x, y, yaw):
