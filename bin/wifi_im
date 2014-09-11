@@ -37,6 +37,14 @@ class WifiIM:
     self.origin = get_map_response.map.info.origin
     del get_map_service
     del get_map_response
+    grid_goals = self.generateGrid(0.5, 0.5)
+    plt.imshow(self.ogrid, cmap=plt.cm.binary, origin="lower", vmin=-1, vmax=1)
+    for goal in grid_goals:
+      plt.plot(goal[0], goal[1], "b.")
+    plt.gca().set_xlim((0, 3200))
+    plt.gca().set_ylim((0, 4500))
+    plt.show()
+    return
     # main loop
     self.run()
   def run(self):
@@ -88,6 +96,14 @@ class WifiIM:
     goal.target_pose.pose.orientation.z = quaternion[3]
     client.send_goal(goal)
     client.wait_for_result()
+  def generateGrid(self, dx, dy):
+    grid_goals = []
+    window = int(0.5/self.resolution)/2
+    for x in np.arange(window, self.ogrid.shape[1]-window, dx/self.resolution):
+      for y in np.arange(window, self.ogrid.shape[0]-window, dy/self.resolution):
+        if np.mean(self.ogrid[y-window:y+window, x-window:x+window]) == 0:
+          grid_goals.append([x, y])
+    return grid_goals
   def callbackPos(self, data):
     print "amcl_pose", [data.pose.pose.position.x, data.pose.pose.position.y, tf.transformations.euler_from_quaternion([data.pose.pose.orientation.w, data.pose.pose.orientation.x, data.pose.pose.orientation.y, data.pose.pose.orientation.z])[0]]
     self.msg_queue.put(["amcl_pose", data])
