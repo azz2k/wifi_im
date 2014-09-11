@@ -96,7 +96,7 @@ class WifiIM:
       currx = (self.pose.pose.position.x - self.origin.position.x)/self.resolution
       curry = (self.pose.pose.position.y - self.origin.position.y)/self.resolution
       yaw = math.pi-math.atan2(goal[0] - currx, goal[1] - curry)
-      if yaw < math.pi:
+      if yaw < -math.pi:
         yaw = yaw + 2*math.pi
       if yaw > math.pi:
         yaw = yaw - 2*math.pi
