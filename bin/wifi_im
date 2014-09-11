@@ -90,11 +90,12 @@ class WifiIM:
           pose.header = data[1].header
           pose.pose = data[1].pose.pose
           self.pose = pose
-      plt.plot((self.pose.pose.position.x - self.origin.position.x)/self.resolution, (self.pose.pose.position.y - self.origin.position.y)/self.resolution, "r.")
+          plt.plot((self.pose.pose.position.x - self.origin.position.x)/self.resolution, (self.pose.pose.position.y - self.origin.position.y)/self.resolution, "r,")
+      plt.plot((self.pose.pose.position.x - self.origin.position.x)/self.resolution, (self.pose.pose.position.y - self.origin.position.y)/self.resolution, "b.")
       plt.draw()
       currx = (self.pose.pose.position.x - self.origin.position.x)/self.resolution
       curry = (self.pose.pose.position.y - self.origin.position.y)/self.resolution
-      yaw = math.pi-atan2(goal[0] - currx, goal[1] - curry)
+      yaw = math.pi-math.atan2(goal[0] - currx, goal[1] - curry)
       if yaw < math.pi:
         yaw = yaw + 2*math.pi
       if yaw > math.pi:
@@ -122,8 +123,8 @@ class WifiIM:
   def generate_grid(self, dx, dy):
     grid_goals = []
     window = int(0.5/self.resolution)/2
-    for x in np.arange(window, self.ogrid.shape[1]-window, dx/self.resolution):
-      for y in np.arange(window, self.ogrid.shape[0]-window, dy/self.resolution):
+    for y in np.arange(window, self.ogrid.shape[0]-window, dy/self.resolution):
+      for x in np.arange(window, self.ogrid.shape[1]-window, dx/self.resolution):
         if np.mean(self.ogrid[y-window:y+window, x-window:x+window]) == 0:
           grid_goals.append([x, y])
     return grid_goals
