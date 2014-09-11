@@ -60,7 +60,7 @@ class WifiIM:
       plt.gca().set_ylim((0, 4500))
       plt.draw()
       for i in range(100):
-        # yaw is zero in y direction for euler angles in /map frame
+        # yaw is zero in -x direction for euler angles in /map frame
         yaw = random.uniform(-math.pi, math.pi)
         newx = (self.pose.pose.position.x - self.origin.position.x)/self.resolution - 150 * math.cos(yaw)
         newy = (self.pose.pose.position.y - self.origin.position.y)/self.resolution + 150 * math.sin(yaw)
