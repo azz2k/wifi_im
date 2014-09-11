@@ -72,11 +72,13 @@ class WifiIM:
           break
       r.sleep()
   def run_sample_grid(self):
-    grid_goals = self.generate_grid(0.5, 0.5)
+    grid_goals = self.generate_grid(1.0, 1.0)
     plt.ion()
     plt.gcf().canvas._tkcanvas.master.geometry("1000x1200")
     plt.imshow(self.ogrid, cmap=plt.cm.binary, origin="lower", vmin=-1, vmax=1)
     cbar = plt.colorbar()
+    for goal in grid_goals:
+      plt.plot(goal[0], goal[1], "g.")
     plt.gca().set_xlim((0, 3200))
     plt.gca().set_ylim((0, 4500))
     for goal in grid_goals:
