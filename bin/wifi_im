@@ -60,10 +60,10 @@ class WifiIM:
       plt.gca().set_ylim((0, 4500))
       plt.draw()
       for i in range(100):
+        # yaw is zero in y direction for euler angles in /map frame
         yaw = random.uniform(-math.pi, math.pi)
-        newx = (self.pose.pose.position.x - self.origin.position.x)/self.resolution + 150 * math.cos(yaw)
+        newx = (self.pose.pose.position.x - self.origin.position.x)/self.resolution - 150 * math.cos(yaw)
         newy = (self.pose.pose.position.y - self.origin.position.y)/self.resolution + 150 * math.sin(yaw)
-        # TODO: check why ogrid is transposed
         # look at the average for clearer results around walls and complicated objects
         window = int(0.5/self.resolution)/2
         if np.mean(self.ogrid[newy-window:newy+window, newx-window:newx+window]) == 0:
@@ -72,7 +72,7 @@ class WifiIM:
           break
       r.sleep()
   def goto(self, x, y, yaw):
-    print "goto", x, y, x * self.resolution + self.origin.position.x, y * self.resolution + self.origin.position.y
+    print "goto", x * self.resolution + self.origin.position.x, y * self.resolution + self.origin.position.y, yaw
     client = actionlib.SimpleActionClient("/move_base", MoveBaseAction)
     client.wait_for_server()
     goal = MoveBaseGoal()
@@ -89,7 +89,7 @@ class WifiIM:
     client.send_goal(goal)
     client.wait_for_result()
   def callbackPos(self, data):
-    print "amcl_pose"
+    print "amcl_pose", [data.pose.pose.position.x, data.pose.pose.position.y, tf.transformations.euler_from_quaternion([data.pose.pose.orientation.w, data.pose.pose.orientation.x, data.pose.pose.orientation.y, data.pose.pose.orientation.z])[0]]
     self.msg_queue.put(["amcl_pose", data])
 
 if __name__ == "__main__":
