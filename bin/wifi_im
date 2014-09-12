@@ -9,6 +9,7 @@ from nav_msgs.srv import GetMap
 from geometry_msgs.msg import PoseStamped
 from geometry_msgs.msg import PoseWithCovarianceStamped
 from move_base_msgs.msg import *
+from wifi_sensor.msg import RssiMulti
 # other stuff
 import numpy as np
 from matplotlib import pyplot as plt
@@ -25,6 +26,7 @@ class WifiIM:
     # msg stuff
     self.msg_queue = Queue.Queue()
     rospy.Subscriber("/amcl_pose", PoseWithCovarianceStamped, self.callback_pos)
+    rospy.Subscriber("/rssi", RssiMulti, self.callback_rssi)
     # get map
     print "waiting for map"
     rospy.wait_for_service("/static_map")
@@ -93,6 +95,8 @@ class WifiIM:
           pose.pose = data[1].pose.pose
           self.pose = pose
           plt.plot((self.pose.pose.position.x - self.origin.position.x)/self.resolution, (self.pose.pose.position.y - self.origin.position.y)/self.resolution, "r,")
+        elif data[0] == "rssi":
+          print data[1]
       plt.plot((self.pose.pose.position.x - self.origin.position.x)/self.resolution, (self.pose.pose.position.y - self.origin.position.y)/self.resolution, "b.")
       plt.draw()
       currx = (self.pose.pose.position.x - self.origin.position.x)/self.resolution
@@ -129,6 +133,8 @@ class WifiIM:
   def callback_pos(self, data):
     print "amcl_pose", [data.pose.pose.position.x, data.pose.pose.position.y, tf.transformations.euler_from_quaternion([data.pose.pose.orientation.w, data.pose.pose.orientation.x, data.pose.pose.orientation.y, data.pose.pose.orientation.z])[0]]
     self.msg_queue.put(["amcl_pose", data])
+  def callback_rssi(self, data):
+    self.msg_queue.put(["rssi", data])
 
 if __name__ == "__main__":
   try:
