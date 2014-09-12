@@ -23,7 +23,7 @@ class WifiIM:
     # misc variables
     self.tflistener = tf.TransformListener()
     self.pose = PoseStamped()
-    self.rssi = {}
+    self.rssi_log = []
     # msg stuff
     self.msg_queue = Queue.Queue()
     rospy.Subscriber("/amcl_pose", PoseWithCovarianceStamped, self.callback_pos)
@@ -97,10 +97,12 @@ class WifiIM:
           self.pose = pose
           plt.plot((self.pose.pose.position.x - self.origin.position.x)/self.resolution, (self.pose.pose.position.y - self.origin.position.y)/self.resolution, "r,")
         elif data[0] == "rssi":
+          rssi_dict = {}
           for rssi in data[1].data:
-            if rssi.their_mac_addr not in self.rssi.keys():
-              self.rssi[rssi.their_mac_addr] = []
-            self.rssi[rssi.their_mac_addr].extend(rssi.rssi)
+            if rssi.their_mac_addr not in rssi_dict.keys():
+              rssi_dict[rssi.their_mac_addr] = []
+            rssi_dict[rssi.their_mac_addr].extend(rssi.rssi)
+          self.rssi_log.append([data[1].header.stamp, rssi_dict])
       plt.plot((self.pose.pose.position.x - self.origin.position.x)/self.resolution, (self.pose.pose.position.y - self.origin.position.y)/self.resolution, "b.")
       plt.draw()
       currx = (self.pose.pose.position.x - self.origin.position.x)/self.resolution
