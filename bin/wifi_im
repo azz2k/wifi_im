@@ -42,6 +42,23 @@ class WifiIM:
     del get_map_response
     # main loop
     self.run_sample_grid()
+  def run_find_ap(self):
+    r = rospy.Rate(5)
+    while not rospy.is_shutdown():
+      print rospy.Time.now()
+      rssi_log = {}
+      pose_log = []
+      while not self.msg_queue.empty():
+        data = self.msg_queue.get()
+        if data[0] == "amcl_pose":
+          self.pose_log.append([data[1].header.stamp, data[1].pose.pose])
+        if data[0] == "rssi":
+          for rssi in data[1].data:
+            if rssi.their_mac_addr not in rssi_log.keys():
+              rssi_log[rssi.their_mac_addr] = [[data[1].header.stamp, np.mean([mes for mes in rssi.rssi if mes < 0])]]
+            else:
+              rssi_log[rssi.their_mac_addr].append([data[1].header.stamp, np.mean([mes for mes in rssi.rssi if mes < 0])])
+      r.sleep()
   def run_random_directions(self):
     r = rospy.Rate(5)
     plt.ion()
