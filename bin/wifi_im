@@ -44,7 +44,6 @@ class WifiIM:
     # main loop
     self.run_sample_grid()
   def run_find_ap(self, target_mac):
-    r = rospy.Rate(5)
     # parameters
     search_radius = 1.0
     # models
@@ -99,7 +98,6 @@ class WifiIM:
       goal = predictions[-1][0]
       yaw = math.pi-math.atan2(goal[1] - pose_log[-1][1].position.y, goal[0] - pose_log[-1][1].position.x)
       self.goto_real(goal[0], goal[1], yaw)
-      r.sleep()
   def interpolate(self, xy, rssi):
     xy = sorted(xy, key=lambda x:x[0])
     r = sorted(rssi, key=lambda x:x[0])
