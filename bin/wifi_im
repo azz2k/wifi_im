@@ -53,7 +53,7 @@ class WifiIM:
     model.fit([[0.0, 0.0]], [0.0])
     model_bak.fit([[0.0, 0.0]], [0.0])
     # data containers
-    rssi_log = {}
+    rssi_log = []
     pose_log = []
     xyr = []
     while not rospy.is_shutdown():
@@ -65,10 +65,8 @@ class WifiIM:
           self.pose_log.append([data[1].header.stamp, data[1].pose.pose])
         if data[0] == "rssi":
           for rssi in data[1].data:
-            if rssi.their_mac_addr not in rssi_log.keys():
-              rssi_log[rssi.their_mac_addr] = [[data[1].header.stamp, np.mean([mes for mes in rssi.rssi if mes < 0])]]
-            else:
-              rssi_log[rssi.their_mac_addr].append([data[1].header.stamp, np.mean([mes for mes in rssi.rssi if mes < 0])])
+            if rssi.their_mac_addr == target_mac:
+              rssi_log.append([data[1].header.stamp, np.mean([mes for mes in rssi.rssi if mes < 0])])
       # maybe sorting?
       # check model predictions
       prediction = 0.0
@@ -76,9 +74,9 @@ class WifiIM:
         prediction = model.predict([pose_log[-1][1].position.x, pose_log[-1].position.y]) 
       except:
         prediction = model_bak.predict([pose_log[-1][1].position.x, pose_log[-1].position.y]) 
-      if abs(prediction- rssi_log[target_mac][-1][1]) > 3.0:
+      if abs(prediction - rssi_log[-1][1]) > 3.0:
         xy = [[pose[0].to_time(), pose[1].position.x, pose[1].position.x] for pose in pose_log]
-        r = [[rssi[0].to_time(), rssi[1]] for rssi in rssi_log[target_mac]]
+        r = [[rssi[0].to_time(), rssi[1]] for rssi in rssi_log]
         xyr = self.interpolate(xy, r)
         model.fit([[x, y] for t, x, y, r in xyr], [r for t, x, y, r in xyr])
         model_bak.fit([[x, y] for t, x, y, r in xyr], [r for t, x, y, r in xyr])
