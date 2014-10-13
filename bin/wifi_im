@@ -161,7 +161,7 @@ class WifiIM:
       yaw = math.pi-math.atan2(goal[1] - curry, goal[0] - currx)
       self.goto_map(goal[0], goal[1], yaw)
   def goto_real(self, x, y, yaw):
-    self.goto_map(self, (x-self.origin.position.x)/self.resolution, (y-self.origin.position.y)/self.resolution, yaw)
+    self.goto_map((x-self.origin.position.x)/self.resolution, (y-self.origin.position.y)/self.resolution, yaw)
   def goto_map(self, x, y, yaw):
     print "goto", x * self.resolution + self.origin.position.x, y * self.resolution + self.origin.position.y, yaw
     client = actionlib.SimpleActionClient("/move_base", MoveBaseAction)
@@ -187,6 +187,8 @@ class WifiIM:
         if test_point_map(x, y, window):
           grid_goals.append([x, y])
     return grid_goals
+  def test_point_real(self, x, y, window):
+    return self.test_point_map((x-self.origin.position.x)/self.resolution, (y-self.origin.position.y)/self.resolution)
   def test_point_map(self, x, y, window):
     if np.mean(self.ogrid[y-window:y+window, x-window:x+window]) == 0:
       return True
