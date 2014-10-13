@@ -133,9 +133,14 @@ class WifiIM:
     window = int(0.5/self.resolution)/2
     for y in np.arange(window, self.ogrid.shape[0]-window, dy/self.resolution):
       for x in np.arange(window, self.ogrid.shape[1]-window, dx/self.resolution):
-        if np.mean(self.ogrid[y-window:y+window, x-window:x+window]) == 0:
+        if test_point_map(x, y, window):
           grid_goals.append([x, y])
     return grid_goals
+  def test_point_map(self, x, y, window):
+    if np.mean(self.ogrid[y-window:y+window, x-window:x+window]) == 0:
+      return True
+    else:
+      return False
   def callback_pos(self, data):
     print "amcl_pose", [data.pose.pose.position.x, data.pose.pose.position.y, tf.transformations.euler_from_quaternion([data.pose.pose.orientation.w, data.pose.pose.orientation.x, data.pose.pose.orientation.y, data.pose.pose.orientation.z])[0]]
     self.msg_queue.put(["amcl_pose", data])
