@@ -42,7 +42,7 @@ class WifiIM:
     del get_map_response
     # main loop
     self.run_sample_grid()
-  def run_find_ap(self):
+  def run_find_ap(self, target_mac):
     r = rospy.Rate(5)
     while not rospy.is_shutdown():
       print rospy.Time.now()
