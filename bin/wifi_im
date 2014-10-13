@@ -45,6 +45,9 @@ class WifiIM:
     self.run_sample_grid()
   def run_find_ap(self, target_mac):
     r = rospy.Rate(5)
+    # parameters
+    search_radius = 1.0
+    # models
     model = RadiusNeighborsRegressor(radius=2.0, weights="distance")
     model_bak = KNeighborsRegressor(n_neighbors=10, weights="distance")
     # dummy fit
@@ -80,6 +83,22 @@ class WifiIM:
         xyr = self.interpolate(xy, r)
         model.fit([[x, y] for t, x, y, r in xyr], [r for t, x, y, r in xyr])
         model_bak.fit([[x, y] for t, x, y, r in xyr], [r for t, x, y, r in xyr])
+      # find new search direction
+      candidates = [[pose_log[-1][1].position.x + search_radius*math.cos(alpha), pose_log[-1].position.y + search_radius*math.sin(alpha)] for alpha in np.linspace(0.0, 2*math.pi, 36)]
+      candidates = [pos for pos in candidates if self.test_point_real(pos)]
+      predictions = []
+      for candidate in candidates:
+        prediction = 0.0
+        try:
+          prediction = model.predict(candidate)
+        except:
+          prediction = model_bak.predict(candidate)
+        predictions.append([candidate, prediction])
+      predictions = sorted(predictions, key=lambda x:x[1])
+      # and goto (blocking)
+      goal = predictions[-1][0]
+      yaw = math.pi-math.atan2(goal[1] - pose_log[-1][1].position.y, goal[0] - pose_log[-1][1].position.x)
+      self.goto_real(goal[0], goal[1], yaw)
       r.sleep()
   def interpolate(self, xy, rssi):
     xy = sorted(xy, key=lambda x:x[0])
