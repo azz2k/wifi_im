@@ -60,6 +60,9 @@ class WifiIM:
     rssi_log = []
     pose_log = []
     xyr = []
+    # plotting
+    plt.ion()
+    plt.gcf().canvas._tkcanvas.master.geometry("500x1200")
     while not rospy.is_shutdown():
       print rospy.Time.now()
       # deal with messages
@@ -99,6 +102,28 @@ class WifiIM:
       # and goto (blocking)
       goal = predictions[-1][0]
       yaw = math.pi-math.atan2(goal[1] - pose_log[-1][1].position.y, goal[0] - pose_log[-1][1].position.x)
+      # plotting
+      xx = np.linspace(-10, 0, 20)
+      yy = np.linspace(-14, 20, 70)
+      rssi_plot = np.zeros((len(xx), len(yy)))
+      for i in range(len(xx)):
+        for j in range(len(yy)):
+            try:
+              rssi_plot[i, j] = model.predict([[xx[i], yy[j]]])
+            except:
+              rssi_plot[i, j] = model_bak.predict([[xx[i], yy[j]]])
+      plt.clf()
+      plt.title(target_mac+" with "+str(len(rssi_log))+" packages")
+      plt.pcolormesh(xx, yy, rssi_plot.T, cmap=plt.get_cmap("gnuplot2"), vmin=-100, vmax=-50)
+      plt.plot([x for t, x, y, z in xyr], [y for t, x, y, z in xyr], "g-")
+      plt.gca().set_xlim((min(xx), max(xx)))
+      plt.gca().set_xlabel("x [m]")
+      plt.gca().set_ylim((min(yy), max(yy)))
+      plt.gca().set_ylabel("y [m]")
+      cbar = plt.colorbar()
+      cbar.set_label("mean rssi [dB]")
+      plt.draw()
+      # moving
       #self.goto_real(goal[0], goal[1], yaw)
   def interpolate(self, xy, rssi):
     xy = sorted(xy, key=lambda x:x[0])
