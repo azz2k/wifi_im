@@ -17,12 +17,14 @@ import Queue
 import random
 import math
 from sklearn.neighbors import RadiusNeighborsRegressor
+from sklearn.neighbors import KNeighborsRegressor
 
 class WifiIM:
   def __init__(self):
     rospy.init_node("wifi_im", anonymous=True)
     # parameter
     target_mac = rospy.get_param("~target_mac", "")
+    print target_mac
     # misc variables
     self.tflistener = tf.TransformListener()
     self.pose = PoseStamped()
@@ -64,7 +66,7 @@ class WifiIM:
       while not self.msg_queue.empty():
         data = self.msg_queue.get()
         if data[0] == "amcl_pose":
-          self.pose_log.append([data[1].header.stamp, data[1].pose.pose])
+          pose_log.append([data[1].header.stamp, data[1].pose.pose])
         if data[0] == "rssi":
           for rssi in data[1].data:
             if rssi.their_mac_addr == target_mac:
@@ -73,9 +75,9 @@ class WifiIM:
       # check model predictions
       prediction = 0.0
       try:
-        prediction = model.predict([pose_log[-1][1].position.x, pose_log[-1].position.y]) 
+        prediction = model.predict([pose_log[-1][1].position.x, pose_log[-1][1].position.y]) 
       except:
-        prediction = model_bak.predict([pose_log[-1][1].position.x, pose_log[-1].position.y]) 
+        prediction = model_bak.predict([pose_log[-1][1].position.x, pose_log[-1][1].position.y]) 
       if abs(prediction - rssi_log[-1][1]) > 3.0:
         xy = [[pose[0].to_time(), pose[1].position.x, pose[1].position.x] for pose in pose_log]
         r = [[rssi[0].to_time(), rssi[1]] for rssi in rssi_log]
@@ -83,8 +85,8 @@ class WifiIM:
         model.fit([[x, y] for t, x, y, r in xyr], [r for t, x, y, r in xyr])
         model_bak.fit([[x, y] for t, x, y, r in xyr], [r for t, x, y, r in xyr])
       # find new search direction
-      candidates = [[pose_log[-1][1].position.x + search_radius*math.cos(alpha), pose_log[-1].position.y + search_radius*math.sin(alpha)] for alpha in np.linspace(0.0, 2*math.pi, 36)]
-      candidates = [pos for pos in candidates if self.test_point_real(pos)]
+      candidates = [[pose_log[-1][1].position.x + search_radius*math.cos(alpha), pose_log[-1][1].position.y + search_radius*math.sin(alpha)] for alpha in np.linspace(0.0, 2*math.pi, 36)]
+      candidates = [pos for pos in candidates if self.test_point_real(pos[0], pos[1], 0.25)]
       predictions = []
       for candidate in candidates:
         prediction = 0.0
@@ -97,7 +99,7 @@ class WifiIM:
       # and goto (blocking)
       goal = predictions[-1][0]
       yaw = math.pi-math.atan2(goal[1] - pose_log[-1][1].position.y, goal[0] - pose_log[-1][1].position.x)
-      self.goto_real(goal[0], goal[1], yaw)
+      #self.goto_real(goal[0], goal[1], yaw)
   def interpolate(self, xy, rssi):
     xy = sorted(xy, key=lambda x:x[0])
     r = sorted(rssi, key=lambda x:x[0])
@@ -214,7 +216,7 @@ class WifiIM:
           grid_goals.append([x, y])
     return grid_goals
   def test_point_real(self, x, y, window):
-    return self.test_point_map((x-self.origin.position.x)/self.resolution, (y-self.origin.position.y)/self.resolution)
+    return self.test_point_map((x-self.origin.position.x)/self.resolution, (y-self.origin.position.y)/self.resolution, int(window/self.resolution))
   def test_point_map(self, x, y, window):
     if np.mean(self.ogrid[y-window:y+window, x-window:x+window]) == 0:
       return True
