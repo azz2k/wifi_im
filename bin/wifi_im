@@ -8,6 +8,7 @@ from nav_msgs.msg import OccupancyGrid
 from nav_msgs.srv import GetMap
 from geometry_msgs.msg import PoseStamped
 from geometry_msgs.msg import PoseWithCovarianceStamped
+from tf2_msgs.msg import TFMessage
 from move_base_msgs.msg import *
 from wifi_sensor.msg import RssiMulti
 # other stuff
@@ -32,6 +33,7 @@ class WifiIM:
     # msg stuff
     self.msg_queue = Queue.Queue()
     rospy.Subscriber("/amcl_pose", PoseWithCovarianceStamped, self.callback_pos)
+    rospy.Subscriber("/tf", TFMessage, self.callback_tf)
     rospy.Subscriber("/rssi", RssiMulti, self.callback_rssi)
     # get map
     print "waiting for map"
@@ -73,7 +75,9 @@ class WifiIM:
         if data[0] == "rssi":
           for rssi in data[1].data:
             if rssi.their_mac_addr == target_mac:
-              rssi_log.append([data[1].header.stamp, np.mean([mes for mes in rssi.rssi if mes < 0])])
+              if len([mes for mes in rssi.rssi if mes < 0]) > 0:
+                rssi_log.append([data[1].header.stamp, np.mean([mes for mes in rssi.rssi if mes < 0])])
+      print rssi_log
       # maybe sorting?
       # check model predictions
       prediction = 0.0
@@ -113,15 +117,16 @@ class WifiIM:
             except:
               rssi_plot[i, j] = model_bak.predict([[xx[i], yy[j]]])
       plt.clf()
-      plt.title(target_mac+" with "+str(len(rssi_log))+" packages")
-      plt.pcolormesh(xx, yy, rssi_plot.T, cmap=plt.get_cmap("gnuplot2"), vmin=-100, vmax=-50)
-      plt.plot([x for t, x, y, z in xyr], [y for t, x, y, z in xyr], "g-")
-      plt.gca().set_xlim((min(xx), max(xx)))
-      plt.gca().set_xlabel("x [m]")
-      plt.gca().set_ylim((min(yy), max(yy)))
-      plt.gca().set_ylabel("y [m]")
-      cbar = plt.colorbar()
-      cbar.set_label("mean rssi [dB]")
+#      plt.title(target_mac+" with "+str(len(rssi_log))+" packages")
+#      plt.pcolormesh(xx, yy, rssi_plot.T, cmap=plt.get_cmap("gnuplot2"), vmin=-100, vmax=0)
+#      plt.plot([x for t, x, y, z in xyr], [y for t, x, y, z in xyr], "g-")
+#      plt.gca().set_xlim((min(xx), max(xx)))
+#      plt.gca().set_xlabel("x [m]")
+#      plt.gca().set_ylim((min(yy), max(yy)))
+#      plt.gca().set_ylabel("y [m]")
+#      cbar = plt.colorbar()
+#      cbar.set_label("mean rssi [dB]")
+      plt.hist([r for t, r in rssi_log])
       plt.draw()
       # moving
       #self.goto_real(goal[0], goal[1], yaw)
@@ -250,6 +255,8 @@ class WifiIM:
   def callback_pos(self, data):
     print "amcl_pose", [data.pose.pose.position.x, data.pose.pose.position.y, tf.transformations.euler_from_quaternion([data.pose.pose.orientation.w, data.pose.pose.orientation.x, data.pose.pose.orientation.y, data.pose.pose.orientation.z])[0]]
     self.msg_queue.put(["amcl_pose", data])
+  def callback_tf(self, data):
+    self.msg_queue.put(["tf", data])
   def callback_rssi(self, data):
     self.msg_queue.put(["rssi", data])
 
