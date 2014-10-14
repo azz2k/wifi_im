@@ -21,6 +21,8 @@ from sklearn.neighbors import RadiusNeighborsRegressor
 class WifiIM:
   def __init__(self):
     rospy.init_node("wifi_im", anonymous=True)
+    # parameter
+    target_mac = rospy.get_param("~target_mac", "")
     # misc variables
     self.tflistener = tf.TransformListener()
     self.pose = PoseStamped()
@@ -42,7 +44,7 @@ class WifiIM:
     del get_map_service
     del get_map_response
     # main loop
-    self.run_sample_grid()
+    self.run_find_ap(target_mac)
   def run_find_ap(self, target_mac):
     # parameters
     search_radius = 1.0
