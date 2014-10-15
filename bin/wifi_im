@@ -20,6 +20,8 @@ import random
 import math
 from sklearn.svm import SVR
 from sklearn.neighbors import KNeighborsRegressor
+from sklearn.neighbors import RadiusNeighborsRegressor
+from sklearn.linear_model import Ridge
 
 class WifiIM:
   def __init__(self):
@@ -51,10 +53,9 @@ class WifiIM:
     # main loop
     self.run_find_ap(target_mac)
   def run_find_ap(self, target_mac):
-    # parameters
-    search_radius = 2.0
     # model
     model = KNeighborsRegressor(n_neighbors=100, weights="distance")
+    selector = RadiusNeighborsRegressor(radius=1.0, weights="distance")
     # data containers
     rssi_log = []
     pose_log = []
@@ -78,8 +79,8 @@ class WifiIM:
             if rssi.their_mac_addr == target_mac:
               if len([mes for mes in rssi.rssi if mes < 0]) > 0:
                 rssi_log.append([data[1].header.stamp, np.mean([mes for mes in rssi.rssi if mes < 0])])
-      print len(rssi_log)
-      print len(pose_log)
+      print "rssi_log", len(rssi_log)
+      print "pose_log", len(pose_log)
       # maybe sorting?
       # check model predictions
 #        prediction = model.predict([pose_log[-1][1].position.x, pose_log[-1][1].position.y]) 
@@ -87,8 +88,25 @@ class WifiIM:
       xy = [[pose[0].to_time(), pose[1].position.x, pose[1].position.y] for pose in pose_log]
       r = [[rssi[0].to_time(), rssi[1]] for rssi in rssi_log]
       xyr = self.interpolate(xy, r)
-      print len(xyr)
-      model.fit([[x, y] for t, x, y, r in xyr], [r for t, x, y, r in xyr])
+      print "xyr", len(xyr)
+      selector.fit([[x, y] for t, x, y, r in xyr], [r for t, x, y, r in xyr])
+      dist, ind = selector.radius_neighbors([self.pose.pose.position.x, self.pose.pose.position.y], radius=6.0)
+      model.fit([[xyr[idx][1], xyr[idx][2]] for idx in ind[0]], [xyr[idx][3] for idx in ind[0]])
+      # find new search direction
+      candidates = []
+      for search_radius in np.linspace(0.0, 2.5, 6):
+        candidates.extend([[pose_log[-1][1].position.x + search_radius*math.cos(alpha), pose_log[-1][1].position.y + search_radius*math.sin(alpha)] for alpha in np.linspace(0.0, 2*math.pi, 36)])
+      candidates = [pos for pos in candidates if self.test_point_real(pos[0], pos[1], 0.25)]
+      candidates = [pos for pos in candidates if len(selector.radius_neighbors(pos, radius=0.5)[1][0]) == 0]
+      print "candidates", len(candidates)
+      predictions = []
+      for candidate in candidates:
+        prediction = model.predict(candidate)
+        predictions.append([candidate, prediction])
+      predictions = sorted(predictions, key=lambda x:x[1])
+      # and goto (blocking)
+      goal = predictions[-1][0]
+      yaw = math.pi-math.atan2(goal[1] - pose_log[-1][1].position.y, goal[0] - pose_log[-1][1].position.x)
       # generate visualization for model
       xx = np.linspace(-10, 0, 20)
       yy = np.linspace(-14, 20, 70)
@@ -103,6 +121,7 @@ class WifiIM:
       plt.title("model")
       plt.pcolormesh(xx, yy, rssi_plot.T, cmap=plt.get_cmap("gnuplot2"), vmin=-100, vmax=0)
       plt.plot([x for t, x, y, r in xyr], [y for t, x, y, r in xyr], "g-")
+      plt.plot(goal[0], goal[1], "r*")
       plt.gca().set_xlim((min(xx), max(xx)))
       plt.gca().set_xlabel("x [m]")
       plt.gca().set_ylim((min(yy), max(yy)))
@@ -113,6 +132,7 @@ class WifiIM:
       plt.title("hexbin")
       plt.hexbin([x for t, x, y, r in xyr], [y for t, x, y, r in xyr], [r for t, x, y, r in xyr], gridsize=20, cmap=plt.get_cmap("gnuplot2"), vmin=-100, vmax=0, extent=(min(xx), max(xx), min(yy), max(yy)))
       plt.plot([x for t, x, y, r in xyr], [y for t, x, y, r in xyr], "g-")
+      plt.plot(goal[0], goal[1], "r*")
       plt.gca().set_xlim((min(xx), max(xx)))
       plt.gca().set_xlabel("x [m]")
       plt.gca().set_ylim((min(yy), max(yy)))
@@ -120,17 +140,6 @@ class WifiIM:
       cbar = plt.colorbar()
       cbar.set_label("mean rssi [dB]")
       plt.draw()
-      # find new search direction
-      candidates = [[pose_log[-1][1].position.x + search_radius*math.cos(alpha), pose_log[-1][1].position.y + search_radius*math.sin(alpha)] for alpha in np.linspace(0.0, 2*math.pi, 36)]
-      candidates = [pos for pos in candidates if self.test_point_real(pos[0], pos[1], 0.25)]
-      predictions = []
-      for candidate in candidates:
-        prediction = model.predict(candidate)
-        predictions.append([candidate, prediction])
-      predictions = sorted(predictions, key=lambda x:x[1])
-      # and goto (blocking)
-      goal = predictions[-1][0]
-      yaw = math.pi-math.atan2(goal[1] - pose_log[-1][1].position.y, goal[0] - pose_log[-1][1].position.x)
       # moving
       self.goto_real(goal[0], goal[1], yaw)
   def interpolate(self, xy, rssi):
