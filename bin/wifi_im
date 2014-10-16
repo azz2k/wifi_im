@@ -58,8 +58,8 @@ class WifiIM:
     self.run_find_ap(target_mac)
   def run_find_ap(self, target_mac):
     # model
+    selector = RadiusNeighborsRegressor(radius=0.5)
     model = SVR(C=1e-1)
-    selector = RadiusNeighborsRegressor(radius=6.0, weights="distance")
     # data containers
     rssi_log = []
     pose_log = []
@@ -94,10 +94,9 @@ class WifiIM:
       xyr = self.interpolate(xy, r)
       print "xyr", len(xyr)
       selector.fit([[x, y] for t, x, y, r in xyr], [r for t, x, y, r in xyr])
-      dist, ind = selector.radius_neighbors([self.pose.pose.position.x, self.pose.pose.position.y], radius=6.0)
-      xy_scaler = StandardScaler().fit([[xyr[idx][1], xyr[idx][2]] for idx in ind[0]])
-      r_scaler = StandardScaler().fit([xyr[idx][3] for idx in ind[0]])
-      model.fit(xy_scaler.transform([[xyr[idx][1], xyr[idx][2]] for idx in ind[0]]), r_scaler.transform([xyr[idx][3] for idx in ind[0]]))
+      xy_scaler = StandardScaler().fit([[x, y] for t, x, y, r in xyr])
+      r_scaler = StandardScaler().fit([r for t, x, y, r in xyr])
+      model.fit(xy_scaler.transform([[x, y] for t, x, y, r in xyr]), r_scaler.transform([r for t, x, y, r in xyr]))
       # find new search direction
       candidates = []
       for x in np.linspace(-10, 0, 20):
