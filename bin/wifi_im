@@ -22,6 +22,7 @@ from sklearn.svm import SVR
 from sklearn.neighbors import KNeighborsRegressor
 from sklearn.neighbors import RadiusNeighborsRegressor
 from sklearn.linear_model import Ridge
+from sklearn.preprocessing import StandardScaler
 
 class WifiIM:
   def __init__(self):
@@ -54,8 +55,8 @@ class WifiIM:
     self.run_find_ap(target_mac)
   def run_find_ap(self, target_mac):
     # model
-    model = KNeighborsRegressor(n_neighbors=100, weights="distance")
-    selector = RadiusNeighborsRegressor(radius=1.0, weights="distance")
+    model = SVR()
+    selector = RadiusNeighborsRegressor(radius=6.0, weights="distance")
     # data containers
     rssi_log = []
     pose_log = []
@@ -91,7 +92,9 @@ class WifiIM:
       print "xyr", len(xyr)
       selector.fit([[x, y] for t, x, y, r in xyr], [r for t, x, y, r in xyr])
       dist, ind = selector.radius_neighbors([self.pose.pose.position.x, self.pose.pose.position.y], radius=6.0)
-      model.fit([[xyr[idx][1], xyr[idx][2]] for idx in ind[0]], [xyr[idx][3] for idx in ind[0]])
+      xy_scaler = StandardScaler().fit([[xyr[idx][1], xyr[idx][2]] for idx in ind[0]])
+      r_scaler = StandardScaler().fit([xyr[idx][3] for idx in ind[0]])
+      model.fit(xy_scaler.transform([[xyr[idx][1], xyr[idx][2]] for idx in ind[0]]), r_scaler.transform([xyr[idx][3] for idx in ind[0]]))
       # find new search direction
       candidates = []
       for search_radius in np.linspace(0.0, 2.5, 6):
@@ -101,7 +104,7 @@ class WifiIM:
       print "candidates", len(candidates)
       predictions = []
       for candidate in candidates:
-        prediction = model.predict(candidate)
+        prediction = r_scaler.inverse_transform(model.predict(xy_scaler.transform(candidate)))
         predictions.append([candidate, prediction])
       predictions = sorted(predictions, key=lambda x:x[1])
       # and goto (blocking)
@@ -113,7 +116,7 @@ class WifiIM:
       rssi_plot = np.zeros((len(xx), len(yy)))
       for i in range(len(xx)):
         for j in range(len(yy)):
-          rssi_plot[i, j] = model.predict([[xx[i], yy[j]]])
+          rssi_plot[i, j] = r_scaler.inverse_transform(model.predict(xy_scaler.transform([[xx[i], yy[j]]])))
       # plotting
       plt.clf()
       plt.suptitle(target_mac+" @ "+str(len(xyr))+" samples")
