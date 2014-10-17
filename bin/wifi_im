@@ -40,7 +40,7 @@ class WifiIM:
     # msg stuff
     self.msg_queue = Queue.Queue()
     rospy.Subscriber("/amcl_pose", PoseWithCovarianceStamped, self.callback_pos)
-    rospy.Subscriber("/tf", TFMessage, self.callback_tf)
+#    rospy.Subscriber("/tf", TFMessage, self.callback_tf)
     rospy.Subscriber("/rssi", RssiMulti, self.callback_rssi)
     # get map
     print "waiting for map"
@@ -287,12 +287,11 @@ class WifiIM:
     else:
       return False
   def callback_pos(self, data):
-#    print "amcl_pose", [data.pose.pose.position.x, data.pose.pose.position.y, tf.transformations.euler_from_quaternion([data.pose.pose.orientation.w, data.pose.pose.orientation.x, data.pose.pose.orientation.y, data.pose.pose.orientation.z])[0]]
     self.msg_queue.put(["amcl_pose", data])
-  def callback_tf(self, data):
-    for msg in data.transforms:
-      if msg.child_frame_id == "odom":
-        self.msg_queue.put(["tf", msg])
+#  def callback_tf(self, data):
+#    for msg in data.transforms:
+#      if msg.child_frame_id == "odom":
+#        self.msg_queue.put(["tf", msg])
   def callback_rssi(self, data):
     self.msg_queue.put(["rssi", data])
 
