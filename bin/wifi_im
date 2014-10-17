@@ -104,7 +104,6 @@ class WifiIM:
       for alpha in np.linspace(0, 2.0*math.pi, 36):
         candidates.append([x+seach_step*math.cos(alpha), y+seach_step*math.sin(alpha)])
       candidates = [pos for pos in candidates if self.test_point_real(pos[0], pos[1], 0.25)]
-      candidates = [pos for pos in candidates if len(selector.radius_neighbors(pos, radius=1.5)[1][0]) == 0]
       print "candidates", len(candidates)
       predictions = []
       for candidate in candidates:
