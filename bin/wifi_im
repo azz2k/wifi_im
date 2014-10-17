@@ -58,7 +58,7 @@ class WifiIM:
     self.run_find_ap(target_mac)
   def run_find_ap(self, target_mac):
     # model
-    model = SVR(C=1e-1)
+    model = Ridge()
     selector = RadiusNeighborsRegressor(radius=6.0, weights="distance")
     # data containers
     rssi_log = []
@@ -87,17 +87,15 @@ class WifiIM:
       print "pose_log", len(pose_log)
       # maybe sorting?
       # check model predictions
-#        prediction = model.predict([pose_log[-1][1].position.x, pose_log[-1][1].position.y]) 
-#      if abs(prediction - rssi_log[-1][1]) > 3.0 or True:
+        prediction = model.predict([self.pose.pose.position.x, self.pose.pose.position.y]) 
+      if abs(prediction - rssi_log[-1][1]) > 3.0 or True:
       xy = [[pose[0].to_time(), pose[1].position.x, pose[1].position.y] for pose in pose_log]
       r = [[rssi[0].to_time(), rssi[1]] for rssi in rssi_log]
       xyr = self.interpolate(xy, r)
       print "xyr", len(xyr)
       selector.fit([[x, y] for t, x, y, r in xyr], [r for t, x, y, r in xyr])
       dist, ind = selector.radius_neighbors([self.pose.pose.position.x, self.pose.pose.position.y], radius=6.0)
-      xy_scaler = StandardScaler().fit([[xyr[idx][1], xyr[idx][2]] for idx in ind[0]])
-      r_scaler = StandardScaler().fit([xyr[idx][3] for idx in ind[0]])
-      model.fit(xy_scaler.transform([[xyr[idx][1], xyr[idx][2]] for idx in ind[0]]), r_scaler.transform([xyr[idx][3] for idx in ind[0]]))
+      model.fit([[xyr[idx][1], xyr[idx][2]] for idx in ind[0]], [xyr[idx][3] for idx in ind[0]])
       # find new search direction
       search_step = 0.5
       candidates = []
@@ -107,7 +105,7 @@ class WifiIM:
       print "candidates", len(candidates)
       predictions = []
       for candidate in candidates:
-        prediction = r_scaler.inverse_transform(model.predict(xy_scaler.transform(candidate)))
+        prediction = model.predict(candidate)
         predictions.append([candidate, prediction])
       predictions = sorted(predictions, key=lambda x:x[1])
       # and goto (blocking)
@@ -119,7 +117,7 @@ class WifiIM:
       rssi_plot = np.zeros((len(xx), len(yy)))
       for i in range(len(xx)):
         for j in range(len(yy)):
-          rssi_plot[i, j] = r_scaler.inverse_transform(model.predict(xy_scaler.transform([[xx[i], yy[j]]])))
+          rssi_plot[i, j] = model.predict([[xx[i], yy[j]]])
       # plotting
       plt.clf()
       plt.suptitle(target_mac+" @ "+str(len(xyr))+" samples")
