@@ -89,7 +89,26 @@ class WifiIM:
       # check model predictions
       prediction = model.predict([self.pose.pose.position.x, self.pose.pose.position.y]) 
       if abs(prediction - rssi_log[-1][1]) > 5.0 or len(xyr) == 0:
-        # sampling is not implemented yet
+        local_radius = 3.0
+        # sample data
+        candidates = []
+        for x in np.linspace(self.pose.pose.position.x-local_radius, self.pose.pose.position.x+local_radius, 30):
+          for y in np.linspace(self.pose.pose.position.y-local_radius, self.pose.pose.position.y+local_radius, 30):
+            candidates.append([x, y])
+        candidates = [candidate for candidate in candidates if math.hypot(candidate[0] - self.pose.pose.position.x, candidate[1] - self.pose.pose.position.y) <= local_radius]
+        candidates = [candidate for candidate in candidates if self.test_point_real(candidate[0], candidate[1], 0.25)]
+        search_wps = [random.choice(candidates) for i in range(3)]
+        for i in range(len(search_wps))
+          print "sample wp", i, ":", search_wps[i]
+          if i == 0:
+            yaw = math.pi-math.atan2(search_wps[i][1] - self.pose.pose.position.y, search_wps[i][0] - self.pose.pose.position.x)
+          else:
+            yaw = math.pi-math.atan2(search_wps[i][1] - search_wps[i-1][1], search_wps[i][0] - search_wps[i-1][0])
+          self.goto_real(search_wps[i], yaw)
+        # go back to starting point
+        yaw = math.pi-math.atan2(self.pose.pose.position.y - search_wps[i][1], self.pose.pose.position.x - search_wps[i][0])
+        self.goto_real([self.pose.pose.position.x, self.pose.pose.position.y], yaw)
+        # now you should process new messages
         # process data
         print "fitting local model"
         xy = [[pose[0].to_time(), pose[1].position.x, pose[1].position.y] for pose in pose_log]
@@ -97,7 +116,7 @@ class WifiIM:
         xyr = self.interpolate(xy, r)
         # find relevant data and fit data
         selector.fit([[x, y] for t, x, y, r in xyr], [r for t, x, y, r in xyr])
-        dist, ind = selector.radius_neighbors([self.pose.pose.position.x, self.pose.pose.position.y], radius=3.0)
+        dist, ind = selector.radius_neighbors([self.pose.pose.position.x, self.pose.pose.position.y], radius=local_radius)
         model.fit([[xyr[idx][1], xyr[idx][2]] for idx in ind[0]], [xyr[idx][3] for idx in ind[0]])
         print "xyr", len(xyr), "and", len(ind[0]), "used"
       # find new search direction
@@ -105,7 +124,7 @@ class WifiIM:
       candidates = []
       for alpha in np.linspace(0, 2.0*math.pi, 36):
         candidates.append([x+seach_step*math.cos(alpha), y+seach_step*math.sin(alpha)])
-      candidates = [pos for pos in candidates if self.test_point_real(pos[0], pos[1], 0.25)]
+      candidates = [candidate for candidate in candidates if self.test_point_real(candidate[0], candidate[1], 0.25)]
       print "candidates", len(candidates)
       predictions = []
       for candidate in candidates:
