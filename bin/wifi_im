@@ -59,7 +59,7 @@ class WifiIM:
   def run_find_ap(self, target_mac):
     # model
     model = Ridge()
-    selector = RadiusNeighborsRegressor(radius=6.0, weights="distance")
+    selector = RadiusNeighborsRegressor(radius=3.0, weights="distance")
     # data containers
     rssi_log = []
     pose_log = []
@@ -87,15 +87,19 @@ class WifiIM:
       print "pose_log", len(pose_log)
       # maybe sorting?
       # check model predictions
-        prediction = model.predict([self.pose.pose.position.x, self.pose.pose.position.y]) 
-      if abs(prediction - rssi_log[-1][1]) > 3.0 or True:
-      xy = [[pose[0].to_time(), pose[1].position.x, pose[1].position.y] for pose in pose_log]
-      r = [[rssi[0].to_time(), rssi[1]] for rssi in rssi_log]
-      xyr = self.interpolate(xy, r)
-      print "xyr", len(xyr)
-      selector.fit([[x, y] for t, x, y, r in xyr], [r for t, x, y, r in xyr])
-      dist, ind = selector.radius_neighbors([self.pose.pose.position.x, self.pose.pose.position.y], radius=6.0)
-      model.fit([[xyr[idx][1], xyr[idx][2]] for idx in ind[0]], [xyr[idx][3] for idx in ind[0]])
+      prediction = model.predict([self.pose.pose.position.x, self.pose.pose.position.y]) 
+      if abs(prediction - rssi_log[-1][1]) > 5.0 or len(xyr) == 0:
+        # sampling is not implemented yet
+        # process data
+        print "fitting local model"
+        xy = [[pose[0].to_time(), pose[1].position.x, pose[1].position.y] for pose in pose_log]
+        r = [[rssi[0].to_time(), rssi[1]] for rssi in rssi_log]
+        xyr = self.interpolate(xy, r)
+        # find relevant data and fit data
+        selector.fit([[x, y] for t, x, y, r in xyr], [r for t, x, y, r in xyr])
+        dist, ind = selector.radius_neighbors([self.pose.pose.position.x, self.pose.pose.position.y], radius=3.0)
+        model.fit([[xyr[idx][1], xyr[idx][2]] for idx in ind[0]], [xyr[idx][3] for idx in ind[0]])
+        print "xyr", len(xyr), "and", len(ind[0]), "used"
       # find new search direction
       search_step = 0.5
       candidates = []
@@ -120,7 +124,7 @@ class WifiIM:
           rssi_plot[i, j] = model.predict([[xx[i], yy[j]]])
       # plotting
       plt.clf()
-      plt.suptitle(target_mac+" @ "+str(len(xyr))+" samples")
+      plt.suptitle(target_mac)
       plt.subplot(121)
       plt.title("model")
       plt.pcolormesh(xx, yy, rssi_plot.T, cmap=plt.get_cmap("gnuplot2"), vmin=-100, vmax=0)
