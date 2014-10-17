@@ -116,6 +116,8 @@ class WifiIM:
       for alpha in np.linspace(0, 2.0*math.pi, 36):
         candidates.append([self.pose.pose.position.x+search_step*math.cos(alpha), self.pose.pose.position.y+search_step*math.sin(alpha)])
       candidates = [candidate for candidate in candidates if self.test_point_real(candidate[0], candidate[1], 0.25)]
+      # for svr you need to force greedy because there are local minima because due to the regularization
+      candidates = [candidate for candidate in candidates if len(selector.radius_neighbors(candidate, radius=1.5)[1][0]) == 0]
       print "candidates", len(candidates)
       predictions = []
       for candidate in candidates:
