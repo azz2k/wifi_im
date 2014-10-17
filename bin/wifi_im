@@ -59,7 +59,7 @@ class WifiIM:
     self.run_find_ap()
   def run_find_ap(self):
     # model
-    model = Ridge()
+    model = SVR(C=1e-1)
     selector = RadiusNeighborsRegressor(radius=3.0, weights="distance")
     # plotting
     plt.ion()
