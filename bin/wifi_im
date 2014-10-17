@@ -99,10 +99,10 @@ class WifiIM:
       r_scaler = StandardScaler().fit([xyr[idx][3] for idx in ind[0]])
       model.fit(xy_scaler.transform([[xyr[idx][1], xyr[idx][2]] for idx in ind[0]]), r_scaler.transform([xyr[idx][3] for idx in ind[0]]))
       # find new search direction
+      search_step = 0.5
       candidates = []
-      for x in np.linspace(-10, 0, 20):
-        for y in np.linspace(-14, 20, 70):
-          candidates.append([x+random.uniform(-0.25, 0.25), y+random.uniform(-0.25, 0.25)])
+      for alpha in np.linspace(0, 2.0*math.pi, 36):
+        candidates.append([x+seach_step*math.cos(alpha), y+seach_step*math.sin(alpha)])
       candidates = [pos for pos in candidates if self.test_point_real(pos[0], pos[1], 0.25)]
       candidates = [pos for pos in candidates if len(selector.radius_neighbors(pos, radius=1.5)[1][0]) == 0]
       print "candidates", len(candidates)
