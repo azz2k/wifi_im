@@ -31,12 +31,13 @@ class WifiIM:
   def __init__(self):
     rospy.init_node("wifi_im", anonymous=True)
     # parameter
-    target_mac = rospy.get_param("~target_mac", "")
-    print target_mac
+    self.target_mac = rospy.get_param("~target_mac", "")
     # misc variables
-    self.tflistener = tf.TransformListener()
     self.pose = Pose()
+    # data containers
     self.rssi_log = []
+    self.pose_log = []
+    self.xyr = []
     # msg stuff
     self.msg_queue = Queue.Queue()
     rospy.Subscriber("/amcl_pose", PoseWithCovarianceStamped, self.callback_pos)
@@ -55,79 +56,90 @@ class WifiIM:
     del get_map_service
     del get_map_response
     # main loop
-    self.run_find_ap(target_mac)
-  def run_find_ap(self, target_mac):
+    self.run_find_ap()
+  def run_find_ap(self):
     # model
     model = SVR(C=1e-1)
-    selector = RadiusNeighborsRegressor(radius=6.0, weights="distance")
-    # data containers
-    rssi_log = []
-    pose_log = []
-    xyr = []
+    selector = RadiusNeighborsRegressor(radius=3.0, weights="distance")
     # plotting
     plt.ion()
     plt.gcf().canvas._tkcanvas.master.geometry("1000x1200")
     while not rospy.is_shutdown():
       print rospy.Time.now()
       # deal with messages
-      while not self.msg_queue.empty():
-        data = self.msg_queue.get()
-        if data[0] == "amcl_pose":
-          pose_log.append([data[1].header.stamp, data[1].pose.pose])
-          pose = PoseStamped()
-          pose.header = data[1].header
-          pose.pose = data[1].pose.pose
-          self.pose = pose
-        if data[0] == "rssi":
-          for rssi in data[1].data:
-            if rssi.their_mac_addr == target_mac:
-              if len([mes for mes in rssi.rssi if mes < 0]) > 0:
-                rssi_log.append([data[1].header.stamp, np.mean([mes for mes in rssi.rssi if mes < 0])])
-      print "rssi_log", len(rssi_log)
-      print "pose_log", len(pose_log)
+      self.process_msgs()
+      print "self.rssi_log", len(self.rssi_log)
+      print "self.pose_log", len(self.pose_log)
       # maybe sorting?
       # check model predictions
-#        prediction = model.predict([pose_log[-1][1].position.x, pose_log[-1][1].position.y]) 
-#      if abs(prediction - rssi_log[-1][1]) > 3.0 or True:
-      xy = [[pose[0].to_time(), pose[1].position.x, pose[1].position.y] for pose in pose_log]
-      r = [[rssi[0].to_time(), rssi[1]] for rssi in rssi_log]
-      xyr = self.interpolate(xy, r)
-      print "xyr", len(xyr)
-      selector.fit([[x, y] for t, x, y, r in xyr], [r for t, x, y, r in xyr])
-      dist, ind = selector.radius_neighbors([self.pose.pose.position.x, self.pose.pose.position.y], radius=6.0)
-      xy_scaler = StandardScaler().fit([[xyr[idx][1], xyr[idx][2]] for idx in ind[0]])
-      r_scaler = StandardScaler().fit([xyr[idx][3] for idx in ind[0]])
-      model.fit(xy_scaler.transform([[xyr[idx][1], xyr[idx][2]] for idx in ind[0]]), r_scaler.transform([xyr[idx][3] for idx in ind[0]]))
+      prediction = -999.0
+      try:
+        prediction = model.predict([self.pose.pose.position.x, self.pose.pose.position.y]) 
+      except:
+        prediction = -999.0
+      if abs(prediction - self.rssi_log[-1][1]) > 5.0 or len(self.xyr) == 0:
+        local_radius = 3.0
+        # sample data
+        candidates = []
+        for x in np.linspace(self.pose.pose.position.x-local_radius, self.pose.pose.position.x+local_radius, 30):
+          for y in np.linspace(self.pose.pose.position.y-local_radius, self.pose.pose.position.y+local_radius, 30):
+            candidates.append([x, y])
+        candidates = [candidate for candidate in candidates if math.hypot(candidate[0] - self.pose.pose.position.x, candidate[1] - self.pose.pose.position.y) <= local_radius]
+        candidates = [candidate for candidate in candidates if self.test_point_real(candidate[0], candidate[1], 0.25)]
+        search_wps = [random.choice(candidates) for i in range(2)]
+        for i in range(len(search_wps)):
+          print "sample wp", i, ":", search_wps[i]
+          if i == 0:
+            yaw = math.pi-math.atan2(search_wps[i][1] - self.pose.pose.position.y, search_wps[i][0] - self.pose.pose.position.x)
+          else:
+            yaw = math.pi-math.atan2(search_wps[i][1] - search_wps[i-1][1], search_wps[i][0] - search_wps[i-1][0])
+          self.goto_real(search_wps[i][0], search_wps[i][1], yaw)
+        # go back to starting point
+        print "goto starting point"
+        yaw = math.pi-math.atan2(self.pose.pose.position.y - search_wps[i][1], self.pose.pose.position.x - search_wps[i][0])
+        self.goto_real(self.pose.pose.position.x, self.pose.pose.position.y, yaw)
+        # process new messages
+        self.process_msgs()
+        # process data
+        print "fitting local model"
+        xy = [[pose[0].to_time(), pose[1].position.x, pose[1].position.y] for pose in self.pose_log]
+        r = [[rssi[0].to_time(), rssi[1]] for rssi in self.rssi_log]
+        self.xyr = self.interpolate(xy, r)
+        # find relevant data and fit data
+        selector.fit([[x, y] for t, x, y, r in self.xyr], [r for t, x, y, r in self.xyr])
+        dist, ind = selector.radius_neighbors([self.pose.pose.position.x, self.pose.pose.position.y], radius=local_radius)
+        model.fit([[self.xyr[idx][1], self.xyr[idx][2]] for idx in ind[0]], [self.xyr[idx][3] for idx in ind[0]])
+        print "xyr", len(self.xyr), "and", len(ind[0]), "used"
       # find new search direction
+      search_step = 1.0
       candidates = []
-      for x in np.linspace(-10, 0, 20):
-        for y in np.linspace(-14, 20, 70):
-          candidates.append([x+random.uniform(-0.25, 0.25), y+random.uniform(-0.25, 0.25)])
-      candidates = [pos for pos in candidates if self.test_point_real(pos[0], pos[1], 0.25)]
-      candidates = [pos for pos in candidates if len(selector.radius_neighbors(pos, radius=1.5)[1][0]) == 0]
+      for alpha in np.linspace(0, 2.0*math.pi, 36):
+        candidates.append([self.pose.pose.position.x+search_step*math.cos(alpha), self.pose.pose.position.y+search_step*math.sin(alpha)])
+      candidates = [candidate for candidate in candidates if self.test_point_real(candidate[0], candidate[1], 0.25)]
       print "candidates", len(candidates)
       predictions = []
       for candidate in candidates:
-        prediction = r_scaler.inverse_transform(model.predict(xy_scaler.transform(candidate)))
+        prediction = model.predict(candidate)
         predictions.append([candidate, prediction])
       predictions = sorted(predictions, key=lambda x:x[1])
       # and goto (blocking)
       goal = predictions[-1][0]
-      yaw = math.pi-math.atan2(goal[1] - pose_log[-1][1].position.y, goal[0] - pose_log[-1][1].position.x)
+      yaw = math.pi-math.atan2(goal[1] - self.pose.pose.position.y, goal[0] - self.pose.pose.position.x)
       # generate visualization for model
       xx = np.linspace(-10, 0, 20)
       yy = np.linspace(-14, 20, 70)
       rssi_plot = np.zeros((len(xx), len(yy)))
       for i in range(len(xx)):
         for j in range(len(yy)):
-          rssi_plot[i, j] = r_scaler.inverse_transform(model.predict(xy_scaler.transform([[xx[i], yy[j]]])))
+          rssi_plot[i, j] = model.predict([[xx[i], yy[j]]])
       # plotting
+      print "plotting"
       plt.clf()
-      plt.suptitle(target_mac+" @ "+str(len(xyr))+" samples")
+      plt.suptitle(self.target_mac)
       plt.subplot(121)
       plt.title("model")
       plt.pcolormesh(xx, yy, rssi_plot.T, cmap=plt.get_cmap("gnuplot2"), vmin=-100, vmax=0)
-      plt.plot([x for t, x, y, r in xyr], [y for t, x, y, r in xyr], "g-")
+      plt.plot([x for t, x, y, r in self.xyr], [y for t, x, y, r in self.xyr], "g-")
       plt.plot(goal[0], goal[1], "r*")
       plt.gca().set_xlim((min(xx), max(xx)))
       plt.gca().set_xlabel("x [m]")
@@ -137,8 +149,8 @@ class WifiIM:
       cbar.set_label("mean rssi [dB]")
       plt.subplot(122)
       plt.title("hexbin")
-      plt.hexbin([x for t, x, y, r in xyr], [y for t, x, y, r in xyr], [r for t, x, y, r in xyr], gridsize=20, cmap=plt.get_cmap("gnuplot2"), vmin=-100, vmax=0, extent=(min(xx), max(xx), min(yy), max(yy)))
-      plt.plot([x for t, x, y, r in xyr], [y for t, x, y, r in xyr], "g-")
+      plt.hexbin([x for t, x, y, r in self.xyr], [y for t, x, y, r in self.xyr], [r for t, x, y, r in self.xyr], gridsize=20, cmap=plt.get_cmap("gnuplot2"), vmin=-100, vmax=0, extent=(min(xx), max(xx), min(yy), max(yy)))
+      plt.plot([x for t, x, y, r in self.xyr], [y for t, x, y, r in self.xyr], "g-")
       plt.plot(goal[0], goal[1], "r*")
       plt.gca().set_xlim((min(xx), max(xx)))
       plt.gca().set_xlabel("x [m]")
@@ -149,6 +161,20 @@ class WifiIM:
       plt.draw()
       # moving
       self.goto_real(goal[0], goal[1], yaw)
+  def process_msgs(self):
+    while not self.msg_queue.empty():
+      data = self.msg_queue.get()
+      if data[0] == "amcl_pose":
+        self.pose_log.append([data[1].header.stamp, data[1].pose.pose])
+        pose = PoseStamped()
+        pose.header = data[1].header
+        pose.pose = data[1].pose.pose
+        self.pose = pose
+      if data[0] == "rssi":
+        for rssi in data[1].data:
+          if rssi.their_mac_addr == self.target_mac:
+            if len([mes for mes in rssi.rssi if mes < 0]) > 0:
+              self.rssi_log.append([data[1].header.stamp, np.mean([mes for mes in rssi.rssi if mes < 0])])
   def interpolate(self, xy, rssi):
     xy = sorted(xy, key=lambda x:x[0])
     r = sorted(rssi, key=lambda x:x[0])
@@ -170,73 +196,6 @@ class WifiIM:
       y = (xy[xy_i+1][2] - xy[xy_i][2])/(xy[xy_i+1][0] - xy[xy_i][0]) * (r[r_i][0] - xy[xy_i][0]) + xy[xy_i][2]
       xyr.append([r[r_i][0], x, y, r[r_i][1]])
     return xyr
-  def run_random_directions(self):
-    r = rospy.Rate(5)
-    plt.ion()
-    plt.gcf().canvas._tkcanvas.master.geometry("1000x1200")
-    while not rospy.is_shutdown():
-      print rospy.Time.now()
-      while not self.msg_queue.empty():
-        data = self.msg_queue.get()
-        if data[0] == "amcl_pose":
-          pose = PoseStamped()
-          pose.header = data[1].header
-          pose.pose = data[1].pose.pose
-          self.pose = pose
-      plt.clf()
-      plt.imshow(self.ogrid, cmap=plt.cm.binary, origin="lower", vmin=-1, vmax=1)
-      plt.plot((self.pose.pose.position.x - self.origin.position.x)/self.resolution, (self.pose.pose.position.y - self.origin.position.y)/self.resolution, "r*")
-      cbar = plt.colorbar()
-      plt.gca().set_xlim((0, 3200))
-      plt.gca().set_ylim((0, 4500))
-      plt.draw()
-      for i in range(100):
-        # yaw is zero in -x direction for euler angles in /map frame
-        yaw = random.uniform(-math.pi, math.pi)
-        newx = (self.pose.pose.position.x - self.origin.position.x)/self.resolution - 150 * math.cos(yaw)
-        newy = (self.pose.pose.position.y - self.origin.position.y)/self.resolution + 150 * math.sin(yaw)
-        # look at the average for clearer results around walls and complicated objects
-        window = int(0.5/self.resolution)/2
-        if np.mean(self.ogrid[newy-window:newy+window, newx-window:newx+window]) == 0:
-          print newx, newy
-          self.goto_map(newx, newy, yaw)
-          break
-      r.sleep()
-  def run_sample_grid(self):
-    grid_goals = self.generate_grid(1.0, 1.0)
-    plt.ion()
-    plt.gcf().canvas._tkcanvas.master.geometry("1000x1200")
-    plt.imshow(self.ogrid, cmap=plt.cm.binary, origin="lower", vmin=-1, vmax=1)
-    cbar = plt.colorbar()
-    for goal in grid_goals:
-      plt.plot(goal[0], goal[1], "g.")
-    plt.gca().set_xlim((0, 3200))
-    plt.gca().set_ylim((0, 4500))
-    for goal in grid_goals:
-      print rospy.Time.now()
-      if rospy.is_shutdown():
-        break
-      while not self.msg_queue.empty():
-        data = self.msg_queue.get()
-        if data[0] == "amcl_pose":
-          pose = PoseStamped()
-          pose.header = data[1].header
-          pose.pose = data[1].pose.pose
-          self.pose = pose
-          plt.plot((self.pose.pose.position.x - self.origin.position.x)/self.resolution, (self.pose.pose.position.y - self.origin.position.y)/self.resolution, "r,")
-        elif data[0] == "rssi":
-          rssi_dict = {}
-          for rssi in data[1].data:
-            if rssi.their_mac_addr not in rssi_dict.keys():
-              rssi_dict[rssi.their_mac_addr] = []
-            rssi_dict[rssi.their_mac_addr].extend(rssi.rssi)
-          self.rssi_log.append([data[1].header.stamp, rssi_dict])
-      plt.plot((self.pose.pose.position.x - self.origin.position.x)/self.resolution, (self.pose.pose.position.y - self.origin.position.y)/self.resolution, "b.")
-      plt.draw()
-      currx = (self.pose.pose.position.x - self.origin.position.x)/self.resolution
-      curry = (self.pose.pose.position.y - self.origin.position.y)/self.resolution
-      yaw = math.pi-math.atan2(goal[1] - curry, goal[0] - currx)
-      self.goto_map(goal[0], goal[1], yaw)
   def goto_real(self, x, y, yaw):
     print "goto", x, y, yaw
     client = actionlib.SimpleActionClient("/move_base", MoveBaseAction)
@@ -253,7 +212,9 @@ class WifiIM:
     goal.target_pose.pose.orientation.y = quaternion[2]
     goal.target_pose.pose.orientation.z = quaternion[3]
     client.send_goal(goal)
-    client.wait_for_result()
+    result = client.wait_for_result()
+    if not result:
+      print "something went wrong while goto_real"
   def goto_map(self, x, y, yaw):
     print "goto", x * self.resolution + self.origin.position.x, y * self.resolution + self.origin.position.y, yaw
     client = actionlib.SimpleActionClient("/move_base", MoveBaseAction)
@@ -270,7 +231,9 @@ class WifiIM:
     goal.target_pose.pose.orientation.y = quaternion[2]
     goal.target_pose.pose.orientation.z = quaternion[3]
     client.send_goal(goal)
-    client.wait_for_result()
+    result = client.wait_for_result()
+    if not result:
+      print "something went wrong while goto_map"
   def generate_grid(self, dx, dy):
     grid_goals = []
     window = int(0.5/self.resolution)/2
