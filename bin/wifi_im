@@ -32,11 +32,12 @@ class WifiIM:
     rospy.init_node("wifi_im", anonymous=True)
     # parameter
     target_mac = rospy.get_param("~target_mac", "")
-    print target_mac
     # misc variables
-    self.tflistener = tf.TransformListener()
     self.pose = Pose()
+    # data containers
     self.rssi_log = []
+    self.pose_log = []
+    self.xyr = []
     # msg stuff
     self.msg_queue = Queue.Queue()
     rospy.Subscriber("/amcl_pose", PoseWithCovarianceStamped, self.callback_pos)
@@ -60,35 +61,19 @@ class WifiIM:
     # model
     model = Ridge()
     selector = RadiusNeighborsRegressor(radius=3.0, weights="distance")
-    # data containers
-    rssi_log = []
-    pose_log = []
-    xyr = []
     # plotting
     plt.ion()
     plt.gcf().canvas._tkcanvas.master.geometry("1000x1200")
     while not rospy.is_shutdown():
       print rospy.Time.now()
       # deal with messages
-      while not self.msg_queue.empty():
-        data = self.msg_queue.get()
-        if data[0] == "amcl_pose":
-          pose_log.append([data[1].header.stamp, data[1].pose.pose])
-          pose = PoseStamped()
-          pose.header = data[1].header
-          pose.pose = data[1].pose.pose
-          self.pose = pose
-        if data[0] == "rssi":
-          for rssi in data[1].data:
-            if rssi.their_mac_addr == target_mac:
-              if len([mes for mes in rssi.rssi if mes < 0]) > 0:
-                rssi_log.append([data[1].header.stamp, np.mean([mes for mes in rssi.rssi if mes < 0])])
-      print "rssi_log", len(rssi_log)
-      print "pose_log", len(pose_log)
+      self.process_msgs()
+      print "self.rssi_log", len(rssi_log)
+      print "self.pose_log", len(pose_log)
       # maybe sorting?
       # check model predictions
       prediction = model.predict([self.pose.pose.position.x, self.pose.pose.position.y]) 
-      if abs(prediction - rssi_log[-1][1]) > 5.0 or len(xyr) == 0:
+      if abs(prediction - self.rssi_log[-1][1]) > 5.0 or len(self.xyr) == 0:
         local_radius = 3.0
         # sample data
         candidates = []
@@ -108,17 +93,18 @@ class WifiIM:
         # go back to starting point
         yaw = math.pi-math.atan2(self.pose.pose.position.y - search_wps[i][1], self.pose.pose.position.x - search_wps[i][0])
         self.goto_real([self.pose.pose.position.x, self.pose.pose.position.y], yaw)
-        # now you should process new messages
+        # process new messages
+        self.process_msgs()
         # process data
         print "fitting local model"
-        xy = [[pose[0].to_time(), pose[1].position.x, pose[1].position.y] for pose in pose_log]
-        r = [[rssi[0].to_time(), rssi[1]] for rssi in rssi_log]
-        xyr = self.interpolate(xy, r)
+        xy = [[pose[0].to_time(), pose[1].position.x, pose[1].position.y] for pose in self.pose_log]
+        r = [[rssi[0].to_time(), rssi[1]] for rssi in self.rssi_log]
+        self.xyr = self.interpolate(xy, r)
         # find relevant data and fit data
-        selector.fit([[x, y] for t, x, y, r in xyr], [r for t, x, y, r in xyr])
+        selector.fit([[x, y] for t, x, y, r in self.xyr], [r for t, x, y, r in xyr])
         dist, ind = selector.radius_neighbors([self.pose.pose.position.x, self.pose.pose.position.y], radius=local_radius)
-        model.fit([[xyr[idx][1], xyr[idx][2]] for idx in ind[0]], [xyr[idx][3] for idx in ind[0]])
-        print "xyr", len(xyr), "and", len(ind[0]), "used"
+        model.fit([[self.xyr[idx][1], xyr[idx][2]] for idx in ind[0]], [xyr[idx][3] for idx in ind[0]])
+        print "self.xyr", len(xyr), "and", len(ind[0]), "used"
       # find new search direction
       search_step = 0.5
       candidates = []
@@ -133,7 +119,7 @@ class WifiIM:
       predictions = sorted(predictions, key=lambda x:x[1])
       # and goto (blocking)
       goal = predictions[-1][0]
-      yaw = math.pi-math.atan2(goal[1] - pose_log[-1][1].position.y, goal[0] - pose_log[-1][1].position.x)
+      yaw = math.pi-math.atan2(goal[1] - self.pose_log[-1][1].position.y, goal[0] - pose_log[-1][1].position.x)
       # generate visualization for model
       xx = np.linspace(-10, 0, 20)
       yy = np.linspace(-14, 20, 70)
@@ -147,7 +133,7 @@ class WifiIM:
       plt.subplot(121)
       plt.title("model")
       plt.pcolormesh(xx, yy, rssi_plot.T, cmap=plt.get_cmap("gnuplot2"), vmin=-100, vmax=0)
-      plt.plot([x for t, x, y, r in xyr], [y for t, x, y, r in xyr], "g-")
+      plt.plot([x for t, x, y, r in self.xyr], [y for t, x, y, r in xyr], "g-")
       plt.plot(goal[0], goal[1], "r*")
       plt.gca().set_xlim((min(xx), max(xx)))
       plt.gca().set_xlabel("x [m]")
@@ -157,8 +143,8 @@ class WifiIM:
       cbar.set_label("mean rssi [dB]")
       plt.subplot(122)
       plt.title("hexbin")
-      plt.hexbin([x for t, x, y, r in xyr], [y for t, x, y, r in xyr], [r for t, x, y, r in xyr], gridsize=20, cmap=plt.get_cmap("gnuplot2"), vmin=-100, vmax=0, extent=(min(xx), max(xx), min(yy), max(yy)))
-      plt.plot([x for t, x, y, r in xyr], [y for t, x, y, r in xyr], "g-")
+      plt.hexbin([x for t, x, y, r in self.xyr], [y for t, x, y, r in xyr], [r for t, x, y, r in xyr], gridsize=20, cmap=plt.get_cmap("gnuplot2"), vmin=-100, vmax=0, extent=(min(xx), max(xx), min(yy), max(yy)))
+      plt.plot([x for t, x, y, r in self.xyr], [y for t, x, y, r in xyr], "g-")
       plt.plot(goal[0], goal[1], "r*")
       plt.gca().set_xlim((min(xx), max(xx)))
       plt.gca().set_xlabel("x [m]")
@@ -169,6 +155,20 @@ class WifiIM:
       plt.draw()
       # moving
       self.goto_real(goal[0], goal[1], yaw)
+  def process_msgs(self):
+    while not self.msg_queue.empty():
+      data = self.msg_queue.get()
+      if data[0] == "amcl_pose":
+        self.pose_log.append([data[1].header.stamp, data[1].pose.pose])
+        pose = PoseStamped()
+        pose.header = data[1].header
+        pose.pose = data[1].pose.pose
+        self.pose = pose
+      if data[0] == "rssi":
+        for rssi in data[1].data:
+          if rssi.their_mac_addr == target_mac:
+            if len([mes for mes in rssi.rssi if mes < 0]) > 0:
+              self.rssi_log.append([data[1].header.stamp, np.mean([mes for mes in rssi.rssi if mes < 0])])
   def interpolate(self, xy, rssi):
     xy = sorted(xy, key=lambda x:x[0])
     r = sorted(rssi, key=lambda x:x[0])
