@@ -18,6 +18,7 @@ from matplotlib import pyplot as plt
 import Queue
 import random
 import math
+# scikit learn
 from sklearn.svm import SVR
 from sklearn.neighbors import KNeighborsRegressor
 from sklearn.neighbors import RadiusNeighborsRegressor
@@ -26,6 +27,23 @@ try:
   from sklearn.preprocessing import StandardScaler
 except:
   from sklearn.preprocessing import Scaler as StandardScaler
+# pybrain
+from pybrain.datasets import SupervisedDataSet
+from pybrain.tools.shortcuts import buildNetwork
+from pybrain.supervised import BackpropTrainer
+
+class fnn:
+  def __init__(self, n_hidden=5):
+    self.n_hidden=n_hidden
+  def fit(self, x, y):
+    self.nn = buildNetwork(len(x[0]), n_hidden, 1)
+    self.ds = SupervisedDataSet(len(x[0]), 1)
+    for xx, yy in zip(x, y):
+      self.ds.addSample(xx, [yy])
+    self.trainer = BackpropTrainer(self.nn, dataset=self.ds)
+    self.trainer.trainEpochs(20)
+  def predict(self, x):
+    return self.nn.activate(x)
 
 class WifiIM:
   def __init__(self):
@@ -59,7 +77,7 @@ class WifiIM:
     self.run_find_ap()
   def run_find_ap(self):
     # model
-    model = SVR(C=1e-1)
+    model = fnn() 
     selector = RadiusNeighborsRegressor(radius=3.0, weights="distance")
     # plotting
     plt.ion()
