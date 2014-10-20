@@ -59,7 +59,8 @@ class WifiIM:
     self.run_find_ap()
   def run_find_ap(self):
     # model
-    model = SVR(C=1e-1)
+#    model = SVR(C=1e-1)
+    model = Ridge()
     selector = RadiusNeighborsRegressor(radius=3.0, weights="distance")
     # plotting
     plt.ion()
@@ -78,7 +79,7 @@ class WifiIM:
       except:
         prediction = -999.0
       if abs(prediction - self.rssi_log[-1][1]) > 5.0 or len(self.xyr) == 0:
-        local_radius = 3.0
+        local_radius = 2.0
         # sample data
         candidates = []
         for x in np.linspace(self.pose.pose.position.x-local_radius, self.pose.pose.position.x+local_radius, 30):
@@ -86,7 +87,14 @@ class WifiIM:
             candidates.append([x, y])
         candidates = [candidate for candidate in candidates if math.hypot(candidate[0] - self.pose.pose.position.x, candidate[1] - self.pose.pose.position.y) <= local_radius]
         candidates = [candidate for candidate in candidates if self.test_point_real(candidate[0], candidate[1], 0.25)]
-        search_wps = [random.choice(candidates) for i in range(2)]
+        # first pass
+        try:
+          greedy_candidates = [candidate for candidate in candidates if len(selector.radius_neighbors(candidate, radius=1.0)[1][0]) == 0]
+          if len(greedy_candidates) != 0:
+            candidates = greedy_candidates
+        except:
+          pass
+        search_wps = [random.choice(candidates) for i in range(5)]
         for i in range(len(search_wps)):
           print "sample wp", i, ":", search_wps[i]
           if i == 0:
@@ -107,7 +115,7 @@ class WifiIM:
         self.xyr = self.interpolate(xy, r)
         # find relevant data and fit data
         selector.fit([[x, y] for t, x, y, r in self.xyr], [r for t, x, y, r in self.xyr])
-        dist, ind = selector.radius_neighbors([self.pose.pose.position.x, self.pose.pose.position.y], radius=local_radius)
+        dist, ind = selector.radius_neighbors([self.pose.pose.position.x, self.pose.pose.position.y], radius=2.0*local_radius)
         model.fit([[self.xyr[idx][1], self.xyr[idx][2]] for idx in ind[0]], [self.xyr[idx][3] for idx in ind[0]])
         print "xyr", len(self.xyr), "and", len(ind[0]), "used"
       # find new search direction
@@ -116,8 +124,10 @@ class WifiIM:
       for alpha in np.linspace(0, 2.0*math.pi, 36):
         candidates.append([self.pose.pose.position.x+search_step*math.cos(alpha), self.pose.pose.position.y+search_step*math.sin(alpha)])
       candidates = [candidate for candidate in candidates if self.test_point_real(candidate[0], candidate[1], 0.25)]
-      # for svr you need to force greedy because there are local minima because due to the regularization
-      candidates = [candidate for candidate in candidates if len(selector.radius_neighbors(candidate, radius=1.5)[1][0]) == 0]
+      # force greedy because there are local minima
+      greedy_candidates = [candidate for candidate in candidates if len(selector.radius_neighbors(candidate, radius=1.0)[1][0]) == 0]
+      if len(greedy_candidates) != 0:
+        candidates = greedy_candidates
       print "candidates", len(candidates)
       predictions = []
       for candidate in candidates:
