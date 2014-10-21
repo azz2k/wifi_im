@@ -32,7 +32,18 @@ from pybrain.datasets import SupervisedDataSet
 from pybrain.tools.shortcuts import buildNetwork
 from pybrain.supervised import BackpropTrainer
 
-class fnn:
+
+class ScaledModel:
+  def __init__(self, model):
+    self.model = model
+  def fit(self, x, y):
+    self.x_scaler = StandardScaler().fit(x)
+    self.y_scaler = StandardScaler().fit(y)
+    self.model.fit(x_scaler.transform(x), y_scaler.transform(y))
+  def predict(self, x):
+    return y_scaler.inverse_transform(self.model.predict(x_scaler.transform(x)))
+
+class FNN:
   def __init__(self, n_hidden=5):
     self.n_hidden=n_hidden
   def fit(self, x, y):
@@ -80,7 +91,7 @@ class WifiIM:
     self.run_find_ap()
   def run_find_ap(self):
     # model
-    model = fnn() 
+    model = ScaledModel(FNN()) 
 #    model = SVR(C=1e-1)
 #    model = Ridge()
     selector = RadiusNeighborsRegressor(radius=3.0, weights="distance")
