@@ -39,9 +39,9 @@ class ScaledModel:
   def fit(self, x, y):
     self.x_scaler = StandardScaler().fit(x)
     self.y_scaler = StandardScaler().fit(y)
-    self.model.fit(x_scaler.transform(x), y_scaler.transform(y))
+    self.model.fit(self.x_scaler.transform(x), self.y_scaler.transform(y))
   def predict(self, x):
-    return y_scaler.inverse_transform(self.model.predict(x_scaler.transform(x)))
+    return self.y_scaler.inverse_transform(self.model.predict(self.x_scaler.transform(x)))
 
 class FNN:
   def __init__(self, n_hidden=5):
@@ -127,7 +127,7 @@ class WifiIM:
             candidates = greedy_candidates
         except:
           pass
-        search_wps = [random.choice(candidates) for i in range(5)]
+        search_wps = [random.choice(candidates) for i in range(3)]
         for i in range(len(search_wps)):
           print "sample wp", i, ":", search_wps[i]
           if i == 0:
@@ -148,14 +148,15 @@ class WifiIM:
         self.xyr = self.interpolate(xy, r)
         # find relevant data and fit data
         selector.fit([[x, y] for t, x, y, r in self.xyr], [r for t, x, y, r in self.xyr])
-        dist, ind = selector.radius_neighbors([self.pose.pose.position.x, self.pose.pose.position.y], radius=2.0*local_radius)
+        dist, ind = selector.radius_neighbors([self.pose.pose.position.x, self.pose.pose.position.y], radius=100.0*local_radius)
         model.fit([[self.xyr[idx][1], self.xyr[idx][2]] for idx in ind[0]], [self.xyr[idx][3] for idx in ind[0]])
         print "xyr", len(self.xyr), "and", len(ind[0]), "used"
       # find new search direction
-      search_step = 1.0
+      search_step = 2.0
       candidates = []
-      for alpha in np.linspace(0, 2.0*math.pi, 36):
-        candidates.append([self.pose.pose.position.x+search_step*math.cos(alpha), self.pose.pose.position.y+search_step*math.sin(alpha)])
+      for x in np.linspace(self.pose.pose.position.x-search_step, self.pose.pose.position.x+search_step, 40):
+        for y in np.linspace(self.pose.pose.position.y-search_step, self.pose.pose.position.y+search_step, 40):
+          candidates.append([x, y])
       candidates = [candidate for candidate in candidates if self.test_point_real(candidate[0], candidate[1], 0.25)]
       # force greedy because there are local minima
       greedy_candidates = [candidate for candidate in candidates if len(selector.radius_neighbors(candidate, radius=1.0)[1][0]) == 0]
