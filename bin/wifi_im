@@ -112,22 +112,23 @@ class WifiIM:
       except:
         prediction = -999.0
       if abs(prediction - self.rssi_log[-1][1]) > 5.0 or len(self.xyr) == 0:
-        local_radius = 2.0
+        local_radius = 1.0
         # sample data
         candidates = []
-        for x in np.linspace(self.pose.pose.position.x-local_radius, self.pose.pose.position.x+local_radius, 30):
-          for y in np.linspace(self.pose.pose.position.y-local_radius, self.pose.pose.position.y+local_radius, 30):
-            if math.hypot(self.pose.pose.position.x-x, self.pose.pose.position.y-y) <= local_radius:
-              candidates.append([x, y])
-        candidates = [candidate for candidate in candidates if math.hypot(candidate[0] - self.pose.pose.position.x, candidate[1] - self.pose.pose.position.y) <= local_radius]
-        candidates = [candidate for candidate in candidates if self.test_point_real(candidate[0], candidate[1], 0.25)]
-        # first pass
-        try:
-          greedy_candidates = [candidate for candidate in candidates if len(selector.radius_neighbors(candidate, radius=1.0)[1][0]) == 0]
-          if len(greedy_candidates) != 0:
-            candidates = greedy_candidates
-        except:
-          pass
+        while len(candidates) == 0:
+          local_radius = local_radius * 2.0
+          for x in np.linspace(self.pose.pose.position.x-local_radius, self.pose.pose.position.x+local_radius, int(local_radius*10.0)*2):
+            for y in np.linspace(self.pose.pose.position.y-local_radius, self.pose.pose.position.y+local_radius, int(local_radius*10.0)*2):
+              if math.hypot(self.pose.pose.position.x-x, self.pose.pose.position.y-y) <= local_radius:
+                candidates.append([x, y])
+          candidates = [candidate for candidate in candidates if self.test_point_real(candidate[0], candidate[1], 0.25)]
+          # force greedy search
+          try:
+            # for the first timestep this fails
+            selector.radius_neighbors(candidateis[0], radius=1.0)
+            candidates = [candidate for candidate in candidates if len(selector.radius_neighbors(candidate, radius=1.0)[1][0]) == 0]
+          except:
+            pass
         search_wps = [random.choice(candidates) for i in range(3)]
         for i in range(len(search_wps)):
           print "sample wp", i, ":", search_wps[i]
@@ -153,18 +154,18 @@ class WifiIM:
         model.fit([[self.xyr[idx][1], self.xyr[idx][2]] for idx in ind[0]], [self.xyr[idx][3] for idx in ind[0]])
         print "xyr", len(self.xyr), "and", len(ind[0]), "used"
       # find new search direction
-      search_step = 2.0
+      search_step = 1.0
       candidates = []
-      for x in np.linspace(self.pose.pose.position.x-search_step, self.pose.pose.position.x+search_step, 40):
-        for y in np.linspace(self.pose.pose.position.y-search_step, self.pose.pose.position.y+search_step, 40):
-          if math.hypot(self.pose.pose.position.x-x, self.pose.pose.position.y-y) <= search_step:
-            candidates.append([x, y])
-      candidates = [candidate for candidate in candidates if self.test_point_real(candidate[0], candidate[1], 0.25)]
-      # force greedy because there are local minima
-      greedy_candidates = [candidate for candidate in candidates if len(selector.radius_neighbors(candidate, radius=1.0)[1][0]) == 0]
-      if len(greedy_candidates) != 0:
-        candidates = greedy_candidates
-      print "candidates", len(candidates)
+      while len(candidates) == 0:
+        search_step = search_step * 2.0
+        for x in np.linspace(self.pose.pose.position.x-search_step, self.pose.pose.position.x+search_step, int(search_step*10.0)*2):
+          for y in np.linspace(self.pose.pose.position.y-search_step, self.pose.pose.position.y+search_step, int(search_step*10.0)*2):
+            if math.hypot(self.pose.pose.position.x-x, self.pose.pose.position.y-y) <= search_step:
+              candidates.append([x, y])
+        candidates = [candidate for candidate in candidates if self.test_point_real(candidate[0], candidate[1], 0.25)]
+        # force greedy because there are local minima
+        candidates = [candidate for candidate in candidates if len(selector.radius_neighbors(candidate, radius=1.0)[1][0]) == 0]
+      print "candidates", len(candidates), search_step
       predictions = []
       for candidate in candidates:
         prediction = model.predict(candidate)
