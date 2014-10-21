@@ -36,14 +36,17 @@ class fnn:
   def __init__(self, n_hidden=5):
     self.n_hidden=n_hidden
   def fit(self, x, y):
-    self.nn = buildNetwork(len(x[0]), n_hidden, 1)
+    self.nn = buildNetwork(len(x[0]), self.n_hidden, 1, bias=True)
     self.ds = SupervisedDataSet(len(x[0]), 1)
     for xx, yy in zip(x, y):
       self.ds.addSample(xx, [yy])
     self.trainer = BackpropTrainer(self.nn, dataset=self.ds)
-    self.trainer.trainEpochs(20)
+    self.trainer.trainEpochs(3)
   def predict(self, x):
-    return self.nn.activate(x)
+    if len(x) == 1:
+      return self.nn.activate(x[0])
+    else:
+      return self.nn.activate(x)
 
 class WifiIM:
   def __init__(self):
