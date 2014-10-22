@@ -95,6 +95,7 @@ class WifiIM:
     t_12 = 20
     stepwidth = 1.0
     epsilon_stepwidth = 3.0
+    error_thresh = 5.0
     # model
     model = ScaledModel(FNN()) 
 #    model = SVR(C=1e-1)
@@ -109,16 +110,9 @@ class WifiIM:
       print n_loop, rospy.Time.now().to_time()
       # deal with messages
       self.process_msgs()
-      print "self.rssi_log", len(self.rssi_log)
-      print "self.pose_log", len(self.pose_log)
-      # maybe sorting?
+      print "self.rssi_log", len(self.rssi_log), "self.pose_log", len(self.pose_log)
       # check model predictions
-      prediction = -999.0
-      try:
-        prediction = model.predict([self.pose.pose.position.x, self.pose.pose.position.y]) 
-      except:
-        prediction = -999.0
-      if abs(prediction - self.rssi_log[-1][1]) > 5.0 or len(self.xyr) == 0:
+      if n_loop == 1 or abs(model.predict([self.pose.pose.position.x, self.pose.pose.position.y]) - self.rssi_log[-1][1]) > error_thresh:
         print "fitting local model"
         xy = [[pose[0].to_time(), pose[1].position.x, pose[1].position.y] for pose in self.pose_log]
         r = [[rssi[0].to_time(), rssi[1]] for rssi in self.rssi_log]
@@ -132,7 +126,8 @@ class WifiIM:
       # epsilon = 0.9*exp(-alpha*n_loop)+0.1 so that epsilon = 0.5 at t_12
       epsilon = 0.9*math.exp((math.log(0.4/0.9) / t_12) * n_loop) + 0.1
       goal = None
-      if random.random() < epsilon:
+      if random.random() > epsilon:
+        # follow best, i.e., greedy
         candidates = []
         for x in np.linspace(-10, 0, 40):
           for y in np.linspace(-15, 20, 140):
@@ -144,10 +139,10 @@ class WifiIM:
         curr = [self.pose.pose.position.x, self.pose.pose.position.y]
         goal = [curr[i] + stepwidth*(best[i] - curr[i])/math.hypot(best[0]-curr[0], best[1]-curr[1]) for i in range[2]]
       else:
+        # random search, epsilon
         candidates = [[self.pose.pose.position.x + epsilon_stepwidth * math.cos(alpha), self.pose.pose.position.y + epsilon_stepwidth * math.sin(alpha)] for alpha in np.linspace(0.0, 2.0*math.pi, 100)]
         candidates = [candidate for candidate in candidates if self.test_point_real(candidate[0], candidate[1], 0.25)]
         goal = random.choice(candidates)
-      yaw = math.pi-math.atan2(goal[1] - self.pose.pose.position.y, goal[0] - self.pose.pose.position.x)
       # generate visualization for model
       xx = np.linspace(-10, 0, 20)
       yy = np.linspace(-15, 20, 70)
@@ -183,6 +178,7 @@ class WifiIM:
       cbar.set_label("mean rssi [dB]")
       plt.draw()
       # moving
+      yaw = math.pi-math.atan2(goal[1] - self.pose.pose.position.y, goal[0] - self.pose.pose.position.x)
       self.goto_real(goal[0], goal[1], yaw)
   def process_msgs(self):
     while not self.msg_queue.empty():
