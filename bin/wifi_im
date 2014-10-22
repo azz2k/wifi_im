@@ -90,6 +90,11 @@ class WifiIM:
     # main loop
     self.run_find_ap()
   def run_find_ap(self):
+    # parameters
+    local_radius = 100.0
+    t_12 = 20
+    stepwidth = 1.0
+    epsilon_stepwidth = 3.0
     # model
     model = ScaledModel(FNN()) 
 #    model = SVR(C=1e-1)
@@ -98,8 +103,10 @@ class WifiIM:
     # plotting
     plt.ion()
     plt.gcf().canvas._tkcanvas.master.geometry("1000x1200")
+    n_loop = 0
     while not rospy.is_shutdown():
-      print rospy.Time.now()
+      n_loop = n_loop + 1
+      print n_loop, rospy.Time.now().to_time()
       # deal with messages
       self.process_msgs()
       print "self.rssi_log", len(self.rssi_log)
@@ -112,71 +119,38 @@ class WifiIM:
       except:
         prediction = -999.0
       if abs(prediction - self.rssi_log[-1][1]) > 5.0 or len(self.xyr) == 0:
-        local_radius = 1.0
-        # sample data
-        candidates = []
-        while len(candidates) == 0:
-          local_radius = local_radius * 2.0
-          for x in np.linspace(self.pose.pose.position.x-local_radius, self.pose.pose.position.x+local_radius, int(local_radius*10.0)*2):
-            for y in np.linspace(self.pose.pose.position.y-local_radius, self.pose.pose.position.y+local_radius, int(local_radius*10.0)*2):
-              if math.hypot(self.pose.pose.position.x-x, self.pose.pose.position.y-y) <= local_radius:
-                candidates.append([x, y])
-          candidates = [candidate for candidate in candidates if self.test_point_real(candidate[0], candidate[1], 0.25)]
-          # force greedy search
-          try:
-            # for the first timestep this fails
-            selector.radius_neighbors(candidateis[0], radius=1.0)
-            candidates = [candidate for candidate in candidates if len(selector.radius_neighbors(candidate, radius=1.0)[1][0]) == 0]
-          except:
-            pass
-        search_wps = [random.choice(candidates) for i in range(3)]
-        for i in range(len(search_wps)):
-          print "sample wp", i, ":", search_wps[i]
-          if i == 0:
-            yaw = math.pi-math.atan2(search_wps[i][1] - self.pose.pose.position.y, search_wps[i][0] - self.pose.pose.position.x)
-          else:
-            yaw = math.pi-math.atan2(search_wps[i][1] - search_wps[i-1][1], search_wps[i][0] - search_wps[i-1][0])
-          self.goto_real(search_wps[i][0], search_wps[i][1], yaw)
-        # go back to starting point
-        print "goto starting point"
-        yaw = math.pi-math.atan2(self.pose.pose.position.y - search_wps[i][1], self.pose.pose.position.x - search_wps[i][0])
-        self.goto_real(self.pose.pose.position.x, self.pose.pose.position.y, yaw)
-        # process new messages
-        self.process_msgs()
-        # process data
         print "fitting local model"
         xy = [[pose[0].to_time(), pose[1].position.x, pose[1].position.y] for pose in self.pose_log]
         r = [[rssi[0].to_time(), rssi[1]] for rssi in self.rssi_log]
         self.xyr = self.interpolate(xy, r)
         # find relevant data and fit data
         selector.fit([[x, y] for t, x, y, r in self.xyr], [r for t, x, y, r in self.xyr])
-        dist, ind = selector.radius_neighbors([self.pose.pose.position.x, self.pose.pose.position.y], radius=100.0*local_radius)
+        dist, ind = selector.radius_neighbors([self.pose.pose.position.x, self.pose.pose.position.y], radius=local_radius)
         model.fit([[self.xyr[idx][1], self.xyr[idx][2]] for idx in ind[0]], [self.xyr[idx][3] for idx in ind[0]])
         print "xyr", len(self.xyr), "and", len(ind[0]), "used"
       # find new search direction
-      search_step = 1.0
-      candidates = []
-      while len(candidates) == 0:
-        search_step = search_step * 2.0
-        for x in np.linspace(self.pose.pose.position.x-search_step, self.pose.pose.position.x+search_step, int(search_step*10.0)*2):
-          for y in np.linspace(self.pose.pose.position.y-search_step, self.pose.pose.position.y+search_step, int(search_step*10.0)*2):
-            if math.hypot(self.pose.pose.position.x-x, self.pose.pose.position.y-y) <= search_step:
-              candidates.append([x, y])
+      # epsilon = 0.9*exp(-alpha*n_loop)+0.1 so that epsilon = 0.5 at t_12
+      epsilon = 0.9*math.exp((-math.log(0.4/0.9) / t_12) * n_loop) + 0.1
+      goal = None
+      if random.random() < epsilon:
+        candidates = []
+        for x in np.linspace(-10, 0, 40):
+          for y in np.linspace(-15, 20, 140):
+            if self.test_point_real(x, y, 0.25):
+              candidates.append([x, y], model.predict([x, y]))
+        candidates = sorted(candidates, key=lambda x:x[1])
+        # and goto (blocking)
+        best = candidates[-1][0]
+        curr = [self.pose.pose.position.x, self.pose.pose.position.y]
+        goal = [curr[i] + stepwidth*(best[i] - curr[i])/math.hypot(best[0]-curr[0], best[1]-curr[1]) for i in range[2]]
+      else:
+        candidates = [[self.pose.pose.position.x + epsilon_stepwidth * math.cos(alpha), self.pose.pose.position.y + epsilon_stepwidth * math.sin(alpha)] for alpha in np.linspace(0.0, 2.0*math.pi, 100)]
         candidates = [candidate for candidate in candidates if self.test_point_real(candidate[0], candidate[1], 0.25)]
-        # force greedy because there are local minima
-        candidates = [candidate for candidate in candidates if len(selector.radius_neighbors(candidate, radius=1.0)[1][0]) == 0]
-      print "candidates", len(candidates), search_step
-      predictions = []
-      for candidate in candidates:
-        prediction = model.predict(candidate)
-        predictions.append([candidate, prediction])
-      predictions = sorted(predictions, key=lambda x:x[1])
-      # and goto (blocking)
-      goal = predictions[-1][0]
+        goal = random.choice(candidates)
       yaw = math.pi-math.atan2(goal[1] - self.pose.pose.position.y, goal[0] - self.pose.pose.position.x)
       # generate visualization for model
       xx = np.linspace(-10, 0, 20)
-      yy = np.linspace(-14, 20, 70)
+      yy = np.linspace(-15, 20, 70)
       rssi_plot = np.zeros((len(xx), len(yy)))
       for i in range(len(xx)):
         for j in range(len(yy)):
