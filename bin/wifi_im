@@ -99,7 +99,7 @@ class WifiIM:
     model = ScaledModel(FNN()) 
 #    model = SVR(C=1e-1)
 #    model = Ridge()
-    selector = RadiusNeighborsRegressor(radius=3.0, weights="distance")
+    selector = RadiusNeighborsRegressor(radius=local_radius)
     # plotting
     plt.ion()
     plt.gcf().canvas._tkcanvas.master.geometry("1000x1200")
@@ -130,7 +130,7 @@ class WifiIM:
         print "xyr", len(self.xyr), "and", len(ind[0]), "used"
       # find new search direction
       # epsilon = 0.9*exp(-alpha*n_loop)+0.1 so that epsilon = 0.5 at t_12
-      epsilon = 0.9*math.exp((-math.log(0.4/0.9) / t_12) * n_loop) + 0.1
+      epsilon = 0.9*math.exp((math.log(0.4/0.9) / t_12) * n_loop) + 0.1
       goal = None
       if random.random() < epsilon:
         candidates = []
