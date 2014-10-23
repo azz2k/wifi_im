@@ -78,6 +78,7 @@ class WifiIM:
     # data containers
     self.rssi_log = []
     self.pose_log = []
+    self.state_log = []
     self.xyr = []
     # msg stuff
     self.msg_queue = Queue.Queue()
@@ -116,6 +117,7 @@ class WifiIM:
     n_loop = 0
     # random movement to get some samples
     print "random initial movement"
+    self.state_log.append([rospy.Time.now().to_time(), "start"])
     self.process_msgs()
     candidates = []
     for x in np.linspace(self.pose.pose.position.x - epsilon_stepwidth, self.pose.pose.position.x + epsilon_stepwidth, int(epsilon_stepwidth * 10)):
@@ -130,12 +132,14 @@ class WifiIM:
     while not rospy.is_shutdown():
       n_loop = n_loop + 1
       print n_loop, rospy.Time.now().to_time()
+      self.state_log.append([rospy.Time.now().to_time(), "loop" + str(n_loop)])
       # deal with messages
       self.process_msgs()
       print "self.rssi_log", len(self.rssi_log), "self.pose_log", len(self.pose_log)
       # check model predictions
       if n_loop == 1 or abs(model.predict([self.pose.pose.position.x, self.pose.pose.position.y]) - self.rssi_log[-1][1]) > error_thresh:
         print "fitting local model"
+        self.state_log.append([rospy.Time.now().to_time(), "fit_model"])
         xy = [[pose[0].to_time(), pose[1].position.x, pose[1].position.y] for pose in self.pose_log]
         r = [[rssi[0].to_time(), rssi[1]] for rssi in self.rssi_log]
         self.xyr = self.interpolate(xy, r)
@@ -151,6 +155,7 @@ class WifiIM:
       if random.random() > epsilon:
         # follow best, i.e., greedy
         print "greedy"
+        self.state_log.append([rospy.Time.now().to_time(), "greedy"])
         candidates = []
         for x in np.linspace(-10, 0, 40):
           for y in np.linspace(-15, 20, 140):
@@ -172,6 +177,7 @@ class WifiIM:
       else:
         # random search, epsilon
         print "epsilon", epsilon
+        self.state_log.append([rospy.Time.now().to_time(), "epsilon"])
         candidates = []
         for x in np.linspace(self.pose.pose.position.x - epsilon_stepwidth, self.pose.pose.position.x + epsilon_stepwidth, int(epsilon_stepwidth * 10)):
           for y in np.linspace(self.pose.pose.position.y - epsilon_stepwidth, self.pose.pose.position.y + epsilon_stepwidth, int(epsilon_stepwidth * 10)):
@@ -322,6 +328,7 @@ class WifiIM:
     data["parameters"]["error_thresh"] = error_thresh
     data["parameters"]["pose_log"] = self.pose_log
     data["parameters"]["rssi_log"] = self.rssi_log
+    data["parameters"]["state_log"] = self.state_log
     xy = [[pose[0].to_time(), pose[1].position.x, pose[1].position.y] for pose in self.pose_log]
     r = [[rssi[0].to_time(), rssi[1]] for rssi in self.rssi_log]
     data["xyr"] = self.interpolate(xy, r)
