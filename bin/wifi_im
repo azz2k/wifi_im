@@ -146,8 +146,7 @@ class WifiIM:
         for x in np.linspace(-10, 0, 40):
           for y in np.linspace(-15, 20, 140):
             if self.test_point_real(x, y, 0.25):
-              if self.test_point_real(candidate[0], candidate[1], 0.25):
-                candidates.append([[x, y], model.predict([x, y])])
+              candidates.append([[x, y], model.predict([x, y])])
         candidates = sorted(candidates, key=lambda x:x[1])
         # and goto (blocking)
         best = candidates[-1][0]
