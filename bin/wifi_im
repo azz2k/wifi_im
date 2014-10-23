@@ -97,7 +97,7 @@ class WifiIM:
     epsilon_stepwidth = 3.0
     error_thresh = 5.0
     # model
-    model = ScaledModel(FNN()) 
+    model = ScaledModel(FNN(10)) 
 #    model = SVR(C=1e-1)
 #    model = Ridge()
     selector = RadiusNeighborsRegressor(radius=local_radius)
@@ -157,6 +157,8 @@ class WifiIM:
         new_stepwidth = stepwidth
         while not self.test_point_real(goal[0], goal[1], 0.25):
           new_stepwidth = new_stepwidth + random.uniform(-0.1, 0.1)
+          if new_stepwidth <= 0.0:
+            new_stepwidth = stepwidth
           goal = [curr[i] + new_stepwidth*(best[i] - curr[i])/math.hypot(best[0]-curr[0], best[1]-curr[1]) for i in range(2)]
       else:
         # random search, epsilon
