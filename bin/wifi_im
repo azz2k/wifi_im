@@ -18,6 +18,7 @@ from matplotlib import pyplot as plt
 import Queue
 import random
 import math
+import cPickle
 # scikit learn
 from sklearn.svm import SVR
 from sklearn.neighbors import KNeighborsRegressor
@@ -306,6 +307,17 @@ class WifiIM:
 #        self.msg_queue.put(["tf", msg])
   def callback_rssi(self, data):
     self.msg_queue.put(["rssi", data])
+  def dump_log(self):
+    data = {}
+    data["parameters"] = {}
+    data["parameters"]
+    data["pose_log"] = self.pose_log
+    data["rssi_log"] = self.rssi_log
+    xy = [[pose[0].to_time(), pose[1].position.x, pose[1].position.y] for pose in self.pose_log]
+    r = [[rssi[0].to_time(), rssi[1]] for rssi in self.rssi_log]
+    data["xyr"] = self.interpolate(xy, r)
+    outname = "log_"+str(int(rospy.Time.now().to_time()))+".pick"
+    cPickle.dump(data, open(outname, "wb"), -1)
 
 if __name__ == "__main__":
   try:
