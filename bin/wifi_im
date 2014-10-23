@@ -44,14 +44,22 @@ class ScaledModel:
     return self.y_scaler.inverse_transform(self.model.predict(self.x_scaler.transform(x)))
 
 class FNN:
-  def __init__(self, n_hidden=5):
+  def __init__(self, n_hidden=[5, 5]):
     self.n_hidden=n_hidden
   def fit(self, x, y):
-    self.nn = buildNetwork(len(x[0]), self.n_hidden, 1, bias=True)
+    if type(self.n_hidden) != list:
+      self.nn = buildNetwork(len(x[0]), self.n_hidden, 1, bias=True)
+    else:
+      if len(self.n_hidden) == 1:
+        self.nn = buildNetwork(len(x[0]), self.n_hidden[0], 1, bias=True)
+      elif len(self.n_hidden) == 2:
+        self.nn = buildNetwork(len(x[0]), self.n_hidden[0], self.n_hidden[1], 1, bias=True)
+      elif len(self.n_hidden) == 3:
+        self.nn = buildNetwork(len(x[0]), self.n_hidden[0], self.n_hidden[1], self.n_hidden[2], 1, bias=True)
     self.ds = SupervisedDataSet(len(x[0]), 1)
     for xx, yy in zip(x, y):
       self.ds.addSample(xx, [yy])
-    self.trainer = BackpropTrainer(self.nn, dataset=self.ds)
+    self.trainer = BackpropTrainer(self.nn, dataset=self.ds, momentum=0.1)
     self.trainer.trainEpochs(3)
   def predict(self, x):
     if len(x) == 1:
@@ -97,7 +105,7 @@ class WifiIM:
     epsilon_stepwidth = 3.0
     error_thresh = 5.0
     # model
-    model = ScaledModel(FNN(10)) 
+    model = ScaledModel(FNN([10, 5])) 
 #    model = SVR(C=1e-1)
 #    model = Ridge()
     selector = RadiusNeighborsRegressor(radius=local_radius)
@@ -159,6 +167,7 @@ class WifiIM:
           if new_stepwidth <= 0.0:
             new_stepwidth = stepwidth
           goal = [curr[i] + new_stepwidth*(best[i] - curr[i])/math.hypot(best[0]-curr[0], best[1]-curr[1]) for i in range(2)]
+        print "stepwidth", new_stepwidth
       else:
         # random search, epsilon
         print "epsilon", epsilon
