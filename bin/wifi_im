@@ -92,7 +92,7 @@ class WifiIM:
   def run_find_ap(self):
     # parameters
     local_radius = 100.0
-    t_12 = 20
+    t_12 = 5
     stepwidth = 1.0
     epsilon_stepwidth = 3.0
     error_thresh = 5.0
@@ -105,6 +105,19 @@ class WifiIM:
     plt.ion()
     plt.gcf().canvas._tkcanvas.master.geometry("1000x1200")
     n_loop = 0
+    # random movement to get some samples
+    print "random initial movement"
+    self.process_msgs()
+    candidates = []
+    for x in np.linspace(self.pose.pose.position.x - epsilon_stepwidth, self.pose.pose.position.x + epsilon_stepwidth, int(epsilon_stepwidth * 10)):
+      for y in np.linspace(self.pose.pose.position.y - epsilon_stepwidth, self.pose.pose.position.y + epsilon_stepwidth, int(epsilon_stepwidth * 10)):
+        if math.hypot(self.pose.pose.position.x - x, self.pose.pose.position.y - y) <= epsilon_stepwidth:
+          candidates.append([x, y])
+    candidates = [candidate for candidate in candidates if self.test_point_real(candidate[0], candidate[1], 0.25)]
+    goal = random.choice(candidates)
+    yaw = math.pi-math.atan2(goal[1] - self.pose.pose.position.y, goal[0] - self.pose.pose.position.x)
+    self.goto_real(goal[0], goal[1], yaw)
+    # main loop
     while not rospy.is_shutdown():
       n_loop = n_loop + 1
       print n_loop, rospy.Time.now().to_time()
@@ -128,19 +141,25 @@ class WifiIM:
       goal = None
       if random.random() > epsilon:
         # follow best, i.e., greedy
+        print "greedy"
         candidates = []
         for x in np.linspace(-10, 0, 40):
           for y in np.linspace(-15, 20, 140):
             if self.test_point_real(x, y, 0.25):
-              candidates.append([x, y], model.predict([x, y]))
+              candidates.append([[x, y], model.predict([x, y])])
         candidates = sorted(candidates, key=lambda x:x[1])
         # and goto (blocking)
         best = candidates[-1][0]
         curr = [self.pose.pose.position.x, self.pose.pose.position.y]
-        goal = [curr[i] + stepwidth*(best[i] - curr[i])/math.hypot(best[0]-curr[0], best[1]-curr[1]) for i in range[2]]
+        goal = [curr[i] + stepwidth*(best[i] - curr[i])/math.hypot(best[0]-curr[0], best[1]-curr[1]) for i in range(2)]
       else:
         # random search, epsilon
-        candidates = [[self.pose.pose.position.x + epsilon_stepwidth * math.cos(alpha), self.pose.pose.position.y + epsilon_stepwidth * math.sin(alpha)] for alpha in np.linspace(0.0, 2.0*math.pi, 100)]
+        print "epsilon", epsilon
+        candidates = []
+        for x in np.linspace(self.pose.pose.position.x - epsilon_stepwidth, self.pose.pose.position.x + epsilon_stepwidth, int(epsilon_stepwidth * 10)):
+          for y in np.linspace(self.pose.pose.position.y - epsilon_stepwidth, self.pose.pose.position.y + epsilon_stepwidth, int(epsilon_stepwidth * 10)):
+            if math.hypot(self.pose.pose.position.x - x, self.pose.pose.position.y - y) <= epsilon_stepwidth:
+              candidates.append([x, y])
         candidates = [candidate for candidate in candidates if self.test_point_real(candidate[0], candidate[1], 0.25)]
         goal = random.choice(candidates)
       # generate visualization for model
