@@ -146,12 +146,18 @@ class WifiIM:
         for x in np.linspace(-10, 0, 40):
           for y in np.linspace(-15, 20, 140):
             if self.test_point_real(x, y, 0.25):
-              candidates.append([[x, y], model.predict([x, y])])
+              if self.test_point_real(candidate[0], candidate[1], 0.25):
+                candidates.append([[x, y], model.predict([x, y])])
         candidates = sorted(candidates, key=lambda x:x[1])
         # and goto (blocking)
         best = candidates[-1][0]
         curr = [self.pose.pose.position.x, self.pose.pose.position.y]
         goal = [curr[i] + stepwidth*(best[i] - curr[i])/math.hypot(best[0]-curr[0], best[1]-curr[1]) for i in range(2)]
+        # if goal not legal, fuzzying of stepwidth
+        new_stepwidth = stepwidth
+        while not self.test_point_real(goal[0], goal[1], 0.25):
+          new_stepwidth = new_stepwidth + random.uniform(-0.1, 0.1)
+          goal = [curr[i] + new_stepwidth*(best[i] - curr[i])/math.hypot(best[0]-curr[0], best[1]-curr[1]) for i in range(2)]
       else:
         # random search, epsilon
         print "epsilon", epsilon
