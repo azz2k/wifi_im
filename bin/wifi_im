@@ -315,9 +315,13 @@ class WifiIM:
   def dump_log(self):
     data = {}
     data["parameters"] = {}
-    data["parameters"]
-    data["pose_log"] = self.pose_log
-    data["rssi_log"] = self.rssi_log
+    data["parameters"]["local_radius"] = local_radius
+    data["parameters"]["t_12"] = t_12
+    data["parameters"]["stepwidth"] = stepwidth
+    data["parameters"]["epsilon_stepwidth"] = epsilon_stepwidth
+    data["parameters"]["error_thresh"] = error_thresh
+    data["parameters"]["pose_log"] = self.pose_log
+    data["parameters"]["rssi_log"] = self.rssi_log
     xy = [[pose[0].to_time(), pose[1].position.x, pose[1].position.y] for pose in self.pose_log]
     r = [[rssi[0].to_time(), rssi[1]] for rssi in self.rssi_log]
     data["xyr"] = self.interpolate(xy, r)
