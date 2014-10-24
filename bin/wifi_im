@@ -182,6 +182,7 @@ class WifiIM:
         print "stepwidth", new_stepwidth
       else:
         # random search, epsilon
+        # TODO: make epsilon only search where you haven't been (maybe look at exploration front)
         print "epsilon", epsilon
         self.state_log.append([rospy.Time.now().to_time(), "epsilon"])
         candidates = []
