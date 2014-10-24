@@ -101,16 +101,16 @@ class WifiIM:
     self.run_find_ap()
   def run_find_ap(self):
     # parameters
-    local_radius = 100.0
-    t_12 = 5
-    stepwidth = 1.0
-    epsilon_stepwidth = 3.0
-    error_thresh = 5.0
+    self.local_radius = 100.0
+    self.t_12 = 5
+    self.stepwidth = 1.0
+    self.epsilon_stepwidth = 3.0
+    self.error_thresh = 5.0
     # model
     model = ScaledModel(FNN([10, 5])) 
 #    model = SVR(C=1e-1)
 #    model = Ridge()
-    selector = RadiusNeighborsRegressor(radius=local_radius)
+    selector = RadiusNeighborsRegressor(radius=self.local_radius)
     # plotting
     plt.ion()
     plt.gcf().canvas._tkcanvas.master.geometry("1000x1200")
@@ -120,9 +120,9 @@ class WifiIM:
     self.state_log.append([rospy.Time.now().to_time(), "start"])
     self.process_msgs()
     candidates = []
-    for x in np.linspace(self.pose.pose.position.x - epsilon_stepwidth, self.pose.pose.position.x + epsilon_stepwidth, int(epsilon_stepwidth * 10)):
-      for y in np.linspace(self.pose.pose.position.y - epsilon_stepwidth, self.pose.pose.position.y + epsilon_stepwidth, int(epsilon_stepwidth * 10)):
-        if math.hypot(self.pose.pose.position.x - x, self.pose.pose.position.y - y) <= epsilon_stepwidth:
+    for x in np.linspace(self.pose.pose.position.x - self.epsilon_stepwidth, self.pose.pose.position.x + self.epsilon_stepwidth, int(self.epsilon_stepwidth * 10)):
+      for y in np.linspace(self.pose.pose.position.y - self.epsilon_stepwidth, self.pose.pose.position.y + self.epsilon_stepwidth, int(self.epsilon_stepwidth * 10)):
+        if math.hypot(self.pose.pose.position.x - x, self.pose.pose.position.y - y) <= self.epsilon_stepwidth:
           candidates.append([x, y])
     candidates = [candidate for candidate in candidates if self.test_point_real(candidate[0], candidate[1], 0.25)]
     goal = random.choice(candidates)
@@ -137,7 +137,7 @@ class WifiIM:
       self.process_msgs()
       print "self.rssi_log", len(self.rssi_log), "self.pose_log", len(self.pose_log)
       # check model predictions
-      if n_loop == 1 or abs(model.predict([self.pose.pose.position.x, self.pose.pose.position.y]) - self.rssi_log[-1][1]) > error_thresh:
+      if n_loop == 1 or abs(model.predict([self.pose.pose.position.x, self.pose.pose.position.y]) - self.rssi_log[-1][1]) > self.error_thresh:
         print "fitting local model"
         self.state_log.append([rospy.Time.now().to_time(), "fit_model"])
         xy = [[pose[0].to_time(), pose[1].position.x, pose[1].position.y] for pose in self.pose_log]
@@ -145,12 +145,12 @@ class WifiIM:
         self.xyr = self.interpolate(xy, r)
         # find relevant data and fit data
         selector.fit([[x, y] for t, x, y, r in self.xyr], [r for t, x, y, r in self.xyr])
-        dist, ind = selector.radius_neighbors([self.pose.pose.position.x, self.pose.pose.position.y], radius=local_radius)
+        dist, ind = selector.radius_neighbors([self.pose.pose.position.x, self.pose.pose.position.y], radius=self.local_radius)
         model.fit([[self.xyr[idx][1], self.xyr[idx][2]] for idx in ind[0]], [self.xyr[idx][3] for idx in ind[0]])
         print "xyr", len(self.xyr), "and", len(ind[0]), "used"
       # find new search direction
-      # epsilon = 0.9*exp(-alpha*n_loop)+0.1 so that epsilon = 0.5 at t_12
-      epsilon = 0.9*math.exp((math.log(0.4/0.9) / t_12) * n_loop) + 0.1
+      # epsilon = 0.9*exp(-alpha*n_loop)+0.1 so that epsilon = 0.5 at self.t_12
+      epsilon = 0.9*math.exp((math.log(0.4/0.9) / self.t_12) * n_loop) + 0.1
       goal = None
       if random.random() > epsilon:
         # follow best, i.e., greedy
@@ -165,13 +165,13 @@ class WifiIM:
         # and goto (blocking)
         best = candidates[-1][0]
         curr = [self.pose.pose.position.x, self.pose.pose.position.y]
-        goal = [curr[i] + stepwidth*(best[i] - curr[i])/math.hypot(best[0]-curr[0], best[1]-curr[1]) for i in range(2)]
+        goal = [curr[i] + self.stepwidth*(best[i] - curr[i])/math.hypot(best[0]-curr[0], best[1]-curr[1]) for i in range(2)]
         # if goal not legal, fuzzying of stepwidth
-        new_stepwidth = stepwidth
+        new_stepwidth = self.stepwidth
         while not self.test_point_real(goal[0], goal[1], 0.25):
           new_stepwidth = new_stepwidth + random.uniform(-0.1, 0.1)
           if new_stepwidth <= 0.0:
-            new_stepwidth = stepwidth
+            new_stepwidth = self.stepwidth
           goal = [curr[i] + new_stepwidth*(best[i] - curr[i])/math.hypot(best[0]-curr[0], best[1]-curr[1]) for i in range(2)]
         print "stepwidth", new_stepwidth
       else:
@@ -179,9 +179,9 @@ class WifiIM:
         print "epsilon", epsilon
         self.state_log.append([rospy.Time.now().to_time(), "epsilon"])
         candidates = []
-        for x in np.linspace(self.pose.pose.position.x - epsilon_stepwidth, self.pose.pose.position.x + epsilon_stepwidth, int(epsilon_stepwidth * 10)):
-          for y in np.linspace(self.pose.pose.position.y - epsilon_stepwidth, self.pose.pose.position.y + epsilon_stepwidth, int(epsilon_stepwidth * 10)):
-            if math.hypot(self.pose.pose.position.x - x, self.pose.pose.position.y - y) <= epsilon_stepwidth:
+        for x in np.linspace(self.pose.pose.position.x - self.epsilon_stepwidth, self.pose.pose.position.x + self.epsilon_stepwidth, int(self.epsilon_stepwidth * 10)):
+          for y in np.linspace(self.pose.pose.position.y - self.epsilon_stepwidth, self.pose.pose.position.y + self.epsilon_stepwidth, int(self.epsilon_stepwidth * 10)):
+            if math.hypot(self.pose.pose.position.x - x, self.pose.pose.position.y - y) <= self.epsilon_stepwidth:
               candidates.append([x, y])
         candidates = [candidate for candidate in candidates if self.test_point_real(candidate[0], candidate[1], 0.25)]
         goal = random.choice(candidates)
@@ -324,11 +324,11 @@ class WifiIM:
     self.process_msgs()
     data = {}
     data["parameters"] = {}
-    data["parameters"]["local_radius"] = local_radius
-    data["parameters"]["t_12"] = t_12
-    data["parameters"]["stepwidth"] = stepwidth
-    data["parameters"]["epsilon_stepwidth"] = epsilon_stepwidth
-    data["parameters"]["error_thresh"] = error_thresh
+    data["parameters"]["local_radius"] = self.local_radius
+    data["parameters"]["t_12"] = self.t_12
+    data["parameters"]["stepwidth"] = self.stepwidth
+    data["parameters"]["epsilon_stepwidth"] = self.epsilon_stepwidth
+    data["parameters"]["error_thresh"] = self.error_thresh
     data["pose_log"] = self.pose_log
     data["rssi_log"] = self.rssi_log
     data["state_log"] = self.state_log
