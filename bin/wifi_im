@@ -108,6 +108,7 @@ class WifiIM:
     self.error_thresh = 5.0
     # model
     model = ScaledModel(FNN([10, 5])) 
+    self.model_name = "fnn 10 5"
 #    model = SVR(C=1e-1)
 #    model = Ridge()
     selector = RadiusNeighborsRegressor(radius=self.local_radius)
@@ -333,6 +334,7 @@ class WifiIM:
     data["parameters"]["stepwidth"] = self.stepwidth
     data["parameters"]["epsilon_stepwidth"] = self.epsilon_stepwidth
     data["parameters"]["error_thresh"] = self.error_thresh
+    data["parameters"]["model_name"] = self.model_name
     data["pose_log"] = self.pose_log
     data["rssi_log"] = self.rssi_log
     data["state_log"] = self.state_log
