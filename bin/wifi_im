@@ -223,6 +223,7 @@ class WifiIM:
       yaw = math.pi-math.atan2(goal[1] - self.pose.pose.position.y, goal[0] - self.pose.pose.position.x)
       self.goto_real(goal[0], goal[1], yaw)
       # logging
+      print "logging"
       self.dump_log()
   def process_msgs(self):
     while not self.msg_queue.empty():
