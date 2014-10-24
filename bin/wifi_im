@@ -144,6 +144,8 @@ class WifiIM:
         xy = [[pose[0].to_time(), pose[1].position.x, pose[1].position.y] for pose in self.pose_log]
         r = [[rssi[0].to_time(), rssi[1]] for rssi in self.rssi_log]
         self.xyr = self.interpolate(xy, r)
+        # shuffle for better backprop performance
+        random.shuffle(self.xyr)
         # find relevant data and fit data
         selector.fit([[x, y] for t, x, y, r in self.xyr], [r for t, x, y, r in self.xyr])
         dist, ind = selector.radius_neighbors([self.pose.pose.position.x, self.pose.pose.position.y], radius=self.local_radius)
