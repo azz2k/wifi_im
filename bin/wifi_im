@@ -167,7 +167,7 @@ class WifiIM:
         curr = [self.pose.pose.position.x, self.pose.pose.position.y]
         goal = [best[0], best[1]]
         # if goal further away than stepwidth, just move stepwidth
-        if math.hypot(curr[0] - best[0], curr[1] - best[1]) > stepwidth:
+        if math.hypot(curr[0] - best[0], curr[1] - best[1]) > self.stepwidth:
           goal = [curr[i] + self.stepwidth*(best[i] - curr[i])/math.hypot(best[0]-curr[0], best[1]-curr[1]) for i in range(2)]
         # if goal not legal, random search of stepwidth
         new_stepwidth = self.stepwidth
