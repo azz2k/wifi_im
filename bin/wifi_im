@@ -222,6 +222,8 @@ class WifiIM:
       # moving
       yaw = math.pi-math.atan2(goal[1] - self.pose.pose.position.y, goal[0] - self.pose.pose.position.x)
       self.goto_real(goal[0], goal[1], yaw)
+      # logging
+      self.dump_log()
   def process_msgs(self):
     while not self.msg_queue.empty():
       data = self.msg_queue.get()
@@ -319,6 +321,7 @@ class WifiIM:
   def callback_rssi(self, data):
     self.msg_queue.put(["rssi", data])
   def dump_log(self):
+    self.process_msgs()
     data = {}
     data["parameters"] = {}
     data["parameters"]["local_radius"] = local_radius
@@ -326,9 +329,9 @@ class WifiIM:
     data["parameters"]["stepwidth"] = stepwidth
     data["parameters"]["epsilon_stepwidth"] = epsilon_stepwidth
     data["parameters"]["error_thresh"] = error_thresh
-    data["parameters"]["pose_log"] = self.pose_log
-    data["parameters"]["rssi_log"] = self.rssi_log
-    data["parameters"]["state_log"] = self.state_log
+    data["pose_log"] = self.pose_log
+    data["rssi_log"] = self.rssi_log
+    data["state_log"] = self.state_log
     xy = [[pose[0].to_time(), pose[1].position.x, pose[1].position.y] for pose in self.pose_log]
     r = [[rssi[0].to_time(), rssi[1]] for rssi in self.rssi_log]
     data["xyr"] = self.interpolate(xy, r)
