@@ -186,12 +186,17 @@ class WifiIM:
         print "epsilon", epsilon
         self.state_log.append([rospy.Time.now().to_time(), "epsilon"])
         candidates = []
-        for x in np.linspace(self.pose.pose.position.x - self.epsilon_stepwidth, self.pose.pose.position.x + self.epsilon_stepwidth, int(self.epsilon_stepwidth * 10)):
-          for y in np.linspace(self.pose.pose.position.y - self.epsilon_stepwidth, self.pose.pose.position.y + self.epsilon_stepwidth, int(self.epsilon_stepwidth * 10)):
-            if math.hypot(self.pose.pose.position.x - x, self.pose.pose.position.y - y) <= self.epsilon_stepwidth:
-              candidates.append([x, y])
+        for x in np.linspace(-10, 0, 20):
+          for y in np.linspace(-15, 20, 70):
+            candidates.append([x, y])
+        print len(candidates)
         candidates = [candidate for candidate in candidates if self.test_point_real(candidate[0], candidate[1], 0.25)]
-        goal = random.choice(candidates)
+        candidates = [candidate for candidate in candidates if len(selector.radius_neighbors([self.pose.pose.position.x, self.pose.pose.position.y], radius=0.5)[1][0]) == 0]
+        print len(candidates)
+        probs = [1.0/math.hypot(candidate[0]-self.pose.pose.position.x, candidate[1]-self.pose.pose.position.y) for candidate in candidates]
+        probs_norm = np.sum(probs)
+        probs = [prob/probs_norm for prob in probs]
+        goal = np.random.choice(candidates, p=probs)
       # generate visualization for model
       xx = np.linspace(-10, 0, 20)
       yy = np.linspace(-15, 20, 70)
