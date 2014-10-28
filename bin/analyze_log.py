@@ -3,6 +3,7 @@
 import cPickle
 import sys
 from matplotlib import pyplot as plt
+from matplotlib import rcParams
 import matplotlib.gridspec as gridspec
 import numpy as np
 import math
@@ -40,8 +41,8 @@ def plot(data, time):
   cbar = plt.colorbar()
   cbar.set_label("mean rssi [dB]")
   plt.subplot(gs[0, 1:])
-  plt.plot([rssi[0]-xyr[0][0] for rssi in xyr], [rssi[3] for rssi in xyr], "b.")
-  plt.plot([rssi[0]-xyr[0][0] for rssi in xyr], smooth([rssi[3] for rssi in xyr], 100), "r-")
+  plt.plot([rssi[0]-data["xyr"][0][0] for rssi in xyr], [rssi[3] for rssi in xyr], "b.")
+  plt.plot([rssi[0]-data["xyr"][0][0] for rssi in xyr], smooth([rssi[3] for rssi in xyr], 100), "r-")
   plt.gca().set_xlabel("time [s]")
   plt.gca().set_ylabel("rssi [dB]")
   plt.gca().set_ylim((-80, -20))
@@ -69,6 +70,20 @@ if __name__ == "__main__":
 
   time_start = data["xyr"][0][0]
   time_end = data["xyr"][-1][0]
+  times = [time_end]
+  if args.video:
+    times = np.arange(time_start+10.0, time_end, 10.0)
 
-  plot(data, time_end)
-  plt.show()
+  rcParams["font.family"] = "serif"
+  rcParams["xtick.labelsize"] = 6
+  rcParams["ytick.labelsize"] = 6
+  rcParams["axes.labelsize"] = 6
+  rcParams["axes.titlesize"] = 6
+  
+  for i in range(len(times)):
+    print i, "/", len(times)
+    plt.clf()
+    plot(data, times[i])
+    plt.title("{:.2f}".format(times[i]))
+    plt.gcf().set_size_inches((12, 9))
+    plt.savefig("frame"+str(i).zfill(6)+".jpg", dpi=100)
