@@ -107,9 +107,10 @@ class WifiIM:
     self.epsilon_stepwidth = 2.0
     self.error_thresh = 5.0
     # model
-    model = ScaledModel(FNN([10, 5])) 
-    self.model_name = "fnn 10 5"
-#    model = SVR(C=1e-1)
+#    model = ScaledModel(FNN([10, 5])) 
+#    self.model_name = "fnn 10 5"
+    model = ScaledModel(SVR(C=1e-1))
+    self.model_name = "svr c=1e-1"
 #    model = Ridge()
     selector = RadiusNeighborsRegressor(radius=self.local_radius)
     # plotting
