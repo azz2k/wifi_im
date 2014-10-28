@@ -120,8 +120,8 @@ class WifiIM:
     n_loop = 0
     # random movement to get some samples
     print "random initial movement"
-    self.state_log.append([rospy.Time.now().to_time(), "start", [self.pose.pose.position.x, self.pose.pose.position.y]])
     self.process_msgs()
+    self.state_log.append([rospy.Time.now().to_time(), "start", [self.pose.pose.position.x, self.pose.pose.position.y]])
     candidates = []
     for x in np.linspace(self.pose.pose.position.x - self.epsilon_stepwidth, self.pose.pose.position.x + self.epsilon_stepwidth, int(self.epsilon_stepwidth * 10)):
       for y in np.linspace(self.pose.pose.position.y - self.epsilon_stepwidth, self.pose.pose.position.y + self.epsilon_stepwidth, int(self.epsilon_stepwidth * 10)):
