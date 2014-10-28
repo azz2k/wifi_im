@@ -12,25 +12,6 @@ import copy
 import random
 import wifi_im
 
-def smooth(x,window_len=11,window='hanning'):
-  if type(x) == list:
-    x = np.array(x)
-  if x.ndim != 1:
-    raise ValueError, "smooth only accepts 1 dimension arrays."
-  if x.size < window_len:
-    raise ValueError, "Input vector needs to be bigger than window size."
-  if window_len<3:
-    return x
-  if not window in ['flat', 'hanning', 'hamming', 'bartlett', 'blackman']:
-    raise ValueError, "Window is on of 'flat', 'hanning', 'hamming', 'bartlett', 'blackman'"
-  s=np.r_[2*x[0]-x[window_len-1::-1],x,2*x[-1]-x[-1:-window_len:-1]]
-  if window == 'flat': #moving average
-    w=np.ones(window_len,'d')
-  else:  
-    w=eval('np.'+window+'(window_len)')
-    y=np.convolve(w/w.sum(),s,mode='same')
-    return y[window_len:-window_len+1]
-
 def plot(data, time):
   xyr = [point for point in data["xyr"] if point[0] < time]
 
@@ -75,7 +56,6 @@ def plot(data, time):
   plt.subplot(gs[0, 2:])
   plt.title("log by time")
   plt.plot([rssi[0]-data["xyr"][0][0] for rssi in xyr], [rssi[3] for rssi in xyr], "b.")
-  plt.plot([rssi[0]-data["xyr"][0][0] for rssi in xyr], smooth([rssi[3] for rssi in xyr], 100), "r-")
   plt.gca().set_xlabel("time [s]")
   plt.gca().set_ylabel("rssi [dB]")
   plt.gca().set_ylim((-80, -20))
@@ -87,7 +67,6 @@ def plot(data, time):
   for length in lengths:
     dist.append(dist[-1]+length)
   plt.plot(dist, [rssi[3] for rssi in xyr], "b.")
-  plt.plot(dist, smooth([rssi[3] for rssi in xyr], 100), "r-")
   plt.gca().set_xlabel("distance travelled [m]")
   plt.gca().set_ylabel("rssi [dB]")
   plt.gca().set_ylim((-80, -20))
