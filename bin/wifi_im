@@ -79,6 +79,7 @@ class WifiIM:
     self.rssi_log = []
     self.pose_log = []
     self.state_log = []
+    self.model_log = []
     self.xyr = []
     # msg stuff
     self.msg_queue = Queue.Queue()
@@ -119,7 +120,7 @@ class WifiIM:
     n_loop = 0
     # random movement to get some samples
     print "random initial movement"
-    self.state_log.append([rospy.Time.now().to_time(), "start"])
+    self.state_log.append([rospy.Time.now().to_time(), "start", [self.pose.pose.position.x, self.pose.pose.position.y]])
     self.process_msgs()
     candidates = []
     for x in np.linspace(self.pose.pose.position.x - self.epsilon_stepwidth, self.pose.pose.position.x + self.epsilon_stepwidth, int(self.epsilon_stepwidth * 10)):
@@ -134,14 +135,14 @@ class WifiIM:
     while not rospy.is_shutdown():
       n_loop = n_loop + 1
       print n_loop, rospy.Time.now().to_time()
-      self.state_log.append([rospy.Time.now().to_time(), "loop" + str(n_loop)])
+      self.state_log.append([rospy.Time.now().to_time(), "loop" + str(n_loop), [self.pose.pose.position.x, self.pose.pose.position.y]])
       # deal with messages
       self.process_msgs()
       print "self.rssi_log", len(self.rssi_log), "self.pose_log", len(self.pose_log)
       # check model predictions
       if n_loop == 1 or abs(model.predict([self.pose.pose.position.x, self.pose.pose.position.y]) - self.rssi_log[-1][1]) > self.error_thresh:
         print "fitting local model"
-        self.state_log.append([rospy.Time.now().to_time(), "fit_model"])
+        self.state_log.append([rospy.Time.now().to_time(), "fit_model", [self.pose.pose.position.x, self.pose.pose.position.y]])
         xy = [[pose[0].to_time(), pose[1].position.x, pose[1].position.y] for pose in self.pose_log]
         r = [[rssi[0].to_time(), rssi[1]] for rssi in self.rssi_log]
         self.xyr = self.interpolate(xy, r)
@@ -160,7 +161,7 @@ class WifiIM:
       if random.random() > epsilon:
         # follow best, i.e., greedy
         print "greedy"
-        self.state_log.append([rospy.Time.now().to_time(), "greedy"])
+        self.state_log.append([rospy.Time.now().to_time(), "greedy", [self.pose.pose.position.x, self.pose.pose.position.y]])
         candidates = []
         for x in np.linspace(-10, 0, 40):
           for y in np.linspace(-15, 20, 140):
@@ -186,7 +187,7 @@ class WifiIM:
         # random search, epsilon
         # TODO: make epsilon only search where you haven't been (maybe look at exploration front)
         print "epsilon", epsilon
-        self.state_log.append([rospy.Time.now().to_time(), "epsilon"])
+        self.state_log.append([rospy.Time.now().to_time(), "epsilon", [self.pose.pose.position.x, self.pose.pose.position.y]])
         candidates = []
         for x in np.linspace(-10, 0, 40):
           for y in np.linspace(-15, 20, 140):
@@ -205,6 +206,7 @@ class WifiIM:
       for i in range(len(xx)):
         for j in range(len(yy)):
           rssi_plot[i, j] = model.predict([[xx[i], yy[j]]])
+      self.model_log.append([rospy.Time.now().to_time(), rssi_plot, [self.pose.pose.position.x, self.pose.pose.position.y]])
       # plotting
       print "plotting"
       plt.clf()
@@ -347,6 +349,7 @@ class WifiIM:
     data["pose_log"] = self.pose_log
     data["rssi_log"] = self.rssi_log
     data["state_log"] = self.state_log
+    data["model_log"] = self.model_log
     xy = [[pose[0].to_time(), pose[1].position.x, pose[1].position.y] for pose in self.pose_log]
     r = [[rssi[0].to_time(), rssi[1]] for rssi in self.rssi_log]
     data["xyr"] = self.interpolate(xy, r)
