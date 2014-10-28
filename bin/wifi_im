@@ -33,7 +33,6 @@ from pybrain.datasets import SupervisedDataSet
 from pybrain.tools.shortcuts import buildNetwork
 from pybrain.supervised import BackpropTrainer
 
-
 class ScaledModel:
   def __init__(self, model):
     self.model = model
@@ -105,7 +104,7 @@ class WifiIM:
     self.local_radius = 100.0
     self.t_12 = 5
     self.stepwidth = 1.0
-    self.error_thresh = 5.0
+    self.error_thresh = 3.0
     # model
 #    model = ScaledModel(FNN([10, 5])) 
 #    self.model_name = "fnn 10 5"
@@ -138,7 +137,9 @@ class WifiIM:
       self.process_msgs()
       print "self.rssi_log", len(self.rssi_log), "self.pose_log", len(self.pose_log)
       # check model predictions
-      if n_loop == 1 or abs(model.predict([self.pose.pose.position.x, self.pose.pose.position.y]) - self.rssi_log[-1][1]) > self.error_thresh:
+      mean_rssi_rate = len(self.rssi_log) / (self.rssi_log[-1][0] - self.rssi_log[0][0]).to_sec()
+      mean_rssi = np.mean([rssi[1] for rssi in self.rssi_log[-(int(1.0*mean_rssi_rate)):]])
+      if n_loop == 1 or abs(model.predict([self.pose.pose.position.x, self.pose.pose.position.y]) - mean_rssi) > self.error_thresh:
         print "fitting local model"
         self.state_log.append([rospy.Time.now().to_time(), "fit_model", [self.pose.pose.position.x, self.pose.pose.position.y]])
         xy = [[pose[0].to_time(), pose[1].position.x, pose[1].position.y] for pose in self.pose_log]
