@@ -105,7 +105,6 @@ class WifiIM:
     self.local_radius = 100.0
     self.t_12 = 5
     self.stepwidth = 1.0
-    self.epsilon_stepwidth = 2.0
     self.error_thresh = 5.0
     # model
 #    model = ScaledModel(FNN([10, 5])) 
@@ -123,10 +122,9 @@ class WifiIM:
     self.process_msgs()
     self.state_log.append([rospy.Time.now().to_time(), "start", [self.pose.pose.position.x, self.pose.pose.position.y]])
     candidates = []
-    for x in np.linspace(self.pose.pose.position.x - self.epsilon_stepwidth, self.pose.pose.position.x + self.epsilon_stepwidth, int(self.epsilon_stepwidth * 10)):
-      for y in np.linspace(self.pose.pose.position.y - self.epsilon_stepwidth, self.pose.pose.position.y + self.epsilon_stepwidth, int(self.epsilon_stepwidth * 10)):
-        if math.hypot(self.pose.pose.position.x - x, self.pose.pose.position.y - y) <= self.epsilon_stepwidth:
-          candidates.append([x, y])
+    for x in np.linspace(self.pose.pose.position.x - 2.0, self.pose.pose.position.x + 2.0, int(2.0 * 10)):
+      for y in np.linspace(self.pose.pose.position.y - 2.0, self.pose.pose.position.y + 2.0, int(2.0 * 10)):
+        candidates.append([x, y])
     candidates = [candidate for candidate in candidates if self.test_point_real(candidate[0], candidate[1], 0.25)]
     goal = random.choice(candidates)
     yaw = math.pi-math.atan2(goal[1] - self.pose.pose.position.y, goal[0] - self.pose.pose.position.x)
@@ -191,8 +189,7 @@ class WifiIM:
         candidates = []
         for x in np.linspace(-10, 0, 40):
           for y in np.linspace(-15, 20, 140):
-            if math.hypot(x-self.pose.pose.position.x, y-self.pose.pose.position.y) >= self.epsilon_stepwidth:
-              candidates.append([x, y])
+            candidates.append([x, y])
         candidates = [candidate for candidate in candidates if self.test_point_real(candidate[0], candidate[1], 0.25)]
         candidates = [candidate for candidate in candidates if len(selector.radius_neighbors(candidate, radius=0.5)[1][0]) == 0]
         probs = [math.exp(-math.hypot(candidate[0]-self.pose.pose.position.x, candidate[1]-self.pose.pose.position.y)) for candidate in candidates]
@@ -343,7 +340,6 @@ class WifiIM:
     data["parameters"]["local_radius"] = self.local_radius
     data["parameters"]["t_12"] = self.t_12
     data["parameters"]["stepwidth"] = self.stepwidth
-    data["parameters"]["epsilon_stepwidth"] = self.epsilon_stepwidth
     data["parameters"]["error_thresh"] = self.error_thresh
     data["parameters"]["model_name"] = self.model_name
     data["pose_log"] = self.pose_log
