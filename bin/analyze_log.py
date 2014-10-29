@@ -19,25 +19,29 @@ def plot(data, time, args):
   fit_model = [state for state in states if state[1] == "fit_model"]
 
   if args.model:
-    xyr_s = []
-    if len(fit_model) > 0:
-      xyr_s = copy.deepcopy([point for point in xyr if point[0] <= fit_model[-1][0]])
-      random.shuffle(xyr_s)
     xx = np.linspace(-10, 0, 20)
     yy = np.linspace(-15, 20, 70)
-    rssi_plot = np.zeros((len(xx), len(yy)))
-    if len(xyr_s) > 0:
-      model = wifi_im.ScaledModel(wifi_im.FNN([10, 5])) 
-      model.fit([point[1:3] for point in xyr_s], [point[3] for point in xyr_s])
-      for i in range(len(xx)):
-        for j in range(len(yy)):
-          rssi_plot[i, j] = model.predict([[xx[i], yy[j]]])
+    rssi_plot = []
+    try:
+      rssi_plot = [model[1] for model in data["model_log"] if model[0] < time][-1]
+    except:
+      xyr_s = []
+      if len(fit_model) > 0:
+        xyr_s = copy.deepcopy([point for point in xyr if point[0] <= fit_model[-1][0]])
+        random.shuffle(xyr_s)
+      rssi_plot = np.zeros((len(xx), len(yy)))
+      if len(xyr_s) > 0:
+        model = wifi_im.ScaledModel(wifi_im.FNN([10, 5])) 
+        model.fit([point[1:3] for point in xyr_s], [point[3] for point in xyr_s])
+        for i in range(len(xx)):
+          for j in range(len(yy)):
+            rssi_plot[i, j] = model.predict([[xx[i], yy[j]]])
 
   gs = gridspec.GridSpec(2, 3)
   plt.subplot(gs[:, 0])
   plt.title("hexbin")
   plt.hexbin([x for t, x, y, r in xyr], [y for t, x, y, r in xyr], [r for t, x, y, r in xyr], gridsize=20, cmap=plt.get_cmap("gnuplot2"), vmin=-80, vmax=-20, extent=(-10, 0, -15, 20))
-  plt.plot([x for t, x, y, r in xyr], [y for t, x, y, r in xyr], "g-")
+  plt.plot([x for t, x, y, r in xyr], [y for t, x, y, r in xyr], color="#39FF14")
   plt.gca().set_xlim((-10, 0))
   plt.gca().set_xlabel("x [m]")
   plt.gca().set_ylim((-15, 20))
@@ -48,6 +52,7 @@ def plot(data, time, args):
     plt.subplot(gs[:, 1])
     plt.title("model")
     plt.pcolormesh(xx, yy, rssi_plot.T, cmap=plt.get_cmap("gnuplot2"), vmin=-80, vmax=-20)
+    plt.plot([x for t, x, y, r in xyr], [y for t, x, y, r in xyr], color="#39FF14")
     plt.gca().set_xlim((-10, 0))
     plt.gca().set_xlabel("x [m]")
     plt.gca().set_ylim((-15, 20))
