@@ -101,16 +101,19 @@ class WifiIM:
     self.run_find_ap()
   def run_find_ap(self):
     # parameters
-    self.local_radius = 100.0
+    self.local_radius = 5.0
     self.t_12 = 5
     self.stepwidth = 1.0
     self.error_thresh = 3.0
     # model
-#    model = ScaledModel(FNN([10, 5])) 
-#    self.model_name = "fnn 10 5"
-    model = ScaledModel(SVR(C=1e-1))
-    self.model_name = "svr c=1e-1"
-#    model = Ridge()
+#    model = ScaledModel(FNN(5)) 
+#    self.model_name = "fnn 5"
+#    model = ScaledModel(SVR(C=1e-1))
+#    self.model_name = "svr c=1e-1"
+    model = Ridge()
+    self.model_name = "ridge"
+#    model = KNeighborsRegressor(n_neighbors=500, weights="distance") 
+#    self.model_name = "knn 500 distance"
     selector = RadiusNeighborsRegressor(radius=self.local_radius)
     # plotting
     plt.ion()
@@ -212,7 +215,7 @@ class WifiIM:
       plt.subplot(121)
       plt.title("model")
       plt.pcolormesh(xx, yy, rssi_plot.T, cmap=plt.get_cmap("gnuplot2"), vmin=-80, vmax=-20)
-      plt.plot([x for t, x, y, r in self.xyr], [y for t, x, y, r in self.xyr], "g.")
+      plt.plot([x for t, x, y, r in self.xyr], [y for t, x, y, r in self.xyr], ".", color="#39FF14")
       plt.plot(goal[0], goal[1], "r*")
       plt.gca().set_xlim((min(xx), max(xx)))
       plt.gca().set_xlabel("x [m]")
@@ -223,7 +226,7 @@ class WifiIM:
       plt.subplot(122)
       plt.title("hexbin")
       plt.hexbin([x for t, x, y, r in self.xyr], [y for t, x, y, r in self.xyr], [r for t, x, y, r in self.xyr], gridsize=20, cmap=plt.get_cmap("gnuplot2"), vmin=-80, vmax=-20, extent=(min(xx), max(xx), min(yy), max(yy)))
-      plt.plot([x for t, x, y, r in self.xyr], [y for t, x, y, r in self.xyr], "g.")
+      plt.plot([x for t, x, y, r in self.xyr], [y for t, x, y, r in self.xyr], ".", color="#39FF14")
       plt.plot(goal[0], goal[1], "r*")
       plt.gca().set_xlim((min(xx), max(xx)))
       plt.gca().set_xlabel("x [m]")
