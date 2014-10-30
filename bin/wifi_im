@@ -24,6 +24,8 @@ from sklearn.svm import SVR
 from sklearn.neighbors import KNeighborsRegressor
 from sklearn.neighbors import RadiusNeighborsRegressor
 from sklearn.linear_model import Ridge
+from sklearn.linear_model import SGDRegressor
+from sklearn.kernel_approximation import RBFSampler
 try:
   from sklearn.preprocessing import StandardScaler
 except:
@@ -42,6 +44,16 @@ class ScaledModel:
     self.model.fit(self.x_scaler.transform(x), self.y_scaler.transform(y))
   def predict(self, x):
     return self.y_scaler.inverse_transform(self.model.predict(self.x_scaler.transform(x)))
+
+class KernelModel:
+  def __init__(self, model):
+    self.sampler = RBFSampler(gamma=1)
+    self.model = model
+  def fit(self, y, x):
+    self.sampler.fit(X)
+    self.model.fit(self.sampler.transform(x), y)
+  def predict(self, x):
+   self.model.predict(self.sampler.transform(x)) 
 
 class FNN:
   def __init__(self, n_hidden=[5, 5]):
