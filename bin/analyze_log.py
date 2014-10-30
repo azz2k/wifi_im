@@ -22,20 +22,22 @@ def plot(data, time, args):
     xx = np.linspace(-10, 0, 20)
     yy = np.linspace(-15, 20, 70)
     rssi_plot = []
-    try:
-      rssi_plot = [model[1] for model in data["model_log"] if model[0] < time][-1]
-    except:
-      xyr_s = []
-      if len(fit_model) > 0:
-        xyr_s = copy.deepcopy([point for point in xyr if point[0] <= fit_model[-1][0]])
-        random.shuffle(xyr_s)
-      rssi_plot = np.zeros((len(xx), len(yy)))
-      if len(xyr_s) > 0:
-        model = wifi_im.ScaledModel(wifi_im.FNN([10, 5])) 
-        model.fit([point[1:3] for point in xyr_s], [point[3] for point in xyr_s])
-        for i in range(len(xx)):
-          for j in range(len(yy)):
-            rssi_plot[i, j] = model.predict([[xx[i], yy[j]]])
+#    try:
+#      rssi_plot = [model[1] for model in data["model_log"] if model[0] < time][-1]
+#    except:
+    xyr_s = []
+#    if len(fit_model) > 0:
+#      xyr_s = copy.deepcopy([point for point in xyr if point[0] <= fit_model[-1][0]])
+#      random.shuffle(xyr_s)
+    xyr_s = copy.deepcopy(xyr)
+    random.shuffle(xyr_s)
+    rssi_plot = np.zeros((len(xx), len(yy)))
+    if len(xyr_s) > 0:
+      model = wifi_im.KernelModel(wifi_im.RidgeCV())
+      model.fit([point[1:3] for point in xyr_s], [point[3] for point in xyr_s])
+      for i in range(len(xx)):
+        for j in range(len(yy)):
+          rssi_plot[i, j] = model.predict([[xx[i], yy[j]]])
 
   gs = gridspec.GridSpec(2, 3)
   plt.subplot(gs[:, 0])

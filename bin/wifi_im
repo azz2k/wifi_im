@@ -49,12 +49,13 @@ class ScaledModel:
 class KernelModel:
   def __init__(self, model):
     self.model = model
-    self.sampler = RBFSampler(gamma=2e-1, n_components=100, random_state=1)
+    self.sampler = RBFSampler(gamma=1e-1, n_components=100, random_state=1)
   def fit(self, x, y):
-    self.sampler.fit(x)
-    self.model.fit(self.sampler.transform(x), y)
+    self.x_scaler = StandardScaler().fit(x)
+    self.sampler.fit(self.x_scaler.transform(x))
+    self.model.fit(self.sampler.transform(self.x_scaler.transform(x)), y)
   def predict(self, x):
-   return self.model.predict(self.sampler.transform(x))
+   return self.model.predict(self.sampler.transform(self.x_scaler.transform(x)))
 
 class FNN:
   def __init__(self, n_hidden=[5, 5]):
