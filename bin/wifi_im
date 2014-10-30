@@ -24,6 +24,7 @@ from sklearn.svm import SVR
 from sklearn.neighbors import KNeighborsRegressor
 from sklearn.neighbors import RadiusNeighborsRegressor
 from sklearn.linear_model import Ridge
+from sklearn.linear_model import RidgeCV
 from sklearn.linear_model import SGDRegressor
 from sklearn.kernel_approximation import RBFSampler
 try:
@@ -47,13 +48,13 @@ class ScaledModel:
 
 class KernelModel:
   def __init__(self, model):
-    self.sampler = RBFSampler(gamma=1)
     self.model = model
-  def fit(self, y, x):
-    self.sampler.fit(X)
+    self.sampler = RBFSampler(gamma=2e-1, n_components=100, random_state=1)
+  def fit(self, x, y):
+    self.sampler.fit(x)
     self.model.fit(self.sampler.transform(x), y)
   def predict(self, x):
-   self.model.predict(self.sampler.transform(x)) 
+   return self.model.predict(self.sampler.transform(x))
 
 class FNN:
   def __init__(self, n_hidden=[5, 5]):
