@@ -115,7 +115,7 @@ class WifiIM:
     self.run_find_ap()
   def run_find_ap(self):
     # parameters
-    self.local_radius = 5.0
+    self.local_radius = 100.0
     self.t_12 = 5
     self.stepwidth = 1.0
     self.error_thresh = 3.0
@@ -124,10 +124,12 @@ class WifiIM:
 #    self.model_name = "fnn 5"
 #    model = ScaledModel(SVR(C=1e-1))
 #    self.model_name = "svr c=1e-1"
-    model = Ridge()
-    self.model_name = "ridge"
+#    model = Ridge()
+#    self.model_name = "ridge"
 #    model = KNeighborsRegressor(n_neighbors=500, weights="distance") 
 #    self.model_name = "knn 500 distance"
+    model = KernelModel(RidgeCV())
+    self.model_name = "kernel ridge cv"
     selector = RadiusNeighborsRegressor(radius=self.local_radius)
     # plotting
     plt.ion()
