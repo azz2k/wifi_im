@@ -184,7 +184,7 @@ class WifiIM:
         print "greedy"
         self.state_log.append([rospy.Time.now().to_time(), "greedy", [self.pose.pose.position.x, self.pose.pose.position.y]])
         candidates = []
-        for x in np.linspace(-10, 0, 40):
+        for x in np.linspace(-12, 2, 48):
           for y in np.linspace(-15, 20, 140):
             if self.test_point_real(x, y, 0.25):
               candidates.append([[x, y], model.predict([x, y])])
@@ -210,7 +210,7 @@ class WifiIM:
         print "epsilon", epsilon
         self.state_log.append([rospy.Time.now().to_time(), "epsilon", [self.pose.pose.position.x, self.pose.pose.position.y]])
         candidates = []
-        for x in np.linspace(-10, 0, 40):
+        for x in np.linspace(-12, 2, 48):
           for y in np.linspace(-15, 20, 140):
             candidates.append([x, y])
         candidates = [candidate for candidate in candidates if self.test_point_real(candidate[0], candidate[1], 0.25)]
@@ -220,7 +220,7 @@ class WifiIM:
         probs = [prob/probs_norm for prob in probs]
         goal = candidates[np.random.choice(len(candidates), p=probs)]
       # generate visualization for model
-      xx = np.linspace(-10, 0, 20)
+      xx = np.linspace(-12, 2, 24)
       yy = np.linspace(-15, 20, 70)
       rssi_plot = np.zeros((len(xx), len(yy)))
       for i in range(len(xx)):
@@ -237,6 +237,7 @@ class WifiIM:
       plt.plot([x for x,y in self.walls], [y for x,y in self.walls], "k,")
       plt.plot([x for t, x, y, r in self.xyr], [y for t, x, y, r in self.xyr], ".", color="#39FF14")
       plt.plot(goal[0], goal[1], "r*")
+      plt.plt.xticks([-10, -5, 0])
       plt.gca().set_xlim((min(xx), max(xx)))
       plt.gca().set_xlabel("x [m]")
       plt.gca().set_ylim((min(yy), max(yy)))
@@ -249,6 +250,7 @@ class WifiIM:
       plt.plot([x for x,y in self.walls], [y for x,y in self.walls], "k,")
       plt.plot([x for t, x, y, r in self.xyr], [y for t, x, y, r in self.xyr], ".", color="#39FF14")
       plt.plot(goal[0], goal[1], "r*")
+      plt.plt.xticks([-10, -5, 0])
       plt.gca().set_xlim((min(xx), max(xx)))
       plt.gca().set_xlabel("x [m]")
       plt.gca().set_ylim((min(yy), max(yy)))
