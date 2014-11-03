@@ -118,7 +118,7 @@ class WifiIM:
     self.run_find_ap()
   def run_find_ap(self):
     # parameters
-    self.local_radius = 100.0
+    self.local_radius = 5.0
     self.t_12 = 5
     self.stepwidth = 1.0
     self.error_thresh = 3.0
@@ -184,8 +184,8 @@ class WifiIM:
         print "greedy"
         self.state_log.append([rospy.Time.now().to_time(), "greedy", [self.pose.pose.position.x, self.pose.pose.position.y]])
         candidates = []
-        for x in np.linspace(-12, 2, 48):
-          for y in np.linspace(-15, 20, 140):
+        for x in np.linspace(-12, 2, 96):
+          for y in np.linspace(-15, 20, 280):
             if self.test_point_real(x, y, 0.25):
               candidates.append([[x, y], model.predict([x, y])])
         candidates = sorted(candidates, key=lambda x:x[1])
@@ -210,10 +210,10 @@ class WifiIM:
         print "epsilon", epsilon
         self.state_log.append([rospy.Time.now().to_time(), "epsilon", [self.pose.pose.position.x, self.pose.pose.position.y]])
         candidates = []
-        for x in np.linspace(-12, 2, 48):
-          for y in np.linspace(-15, 20, 140):
-            candidates.append([x, y])
-        candidates = [candidate for candidate in candidates if self.test_point_real(candidate[0], candidate[1], 0.25)]
+        for x in np.linspace(-12, 2, 96):
+          for y in np.linspace(-15, 20, 280):
+            if self.test_point_real(x, y, 0.25):
+              candidates.append([x, y])
         candidates = [candidate for candidate in candidates if len(selector.radius_neighbors(candidate, radius=0.5)[1][0]) == 0]
         probs = [math.exp(-math.hypot(candidate[0]-self.pose.pose.position.x, candidate[1]-self.pose.pose.position.y)) for candidate in candidates]
         probs_norm = np.sum(probs)
