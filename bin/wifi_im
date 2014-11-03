@@ -111,8 +111,19 @@ class WifiIM:
     self.origin = get_map_response.map.info.origin
     del get_map_service
     del get_map_response
+    print self.ogrid
+    #  generate walls for plotting
+    self.walls = []
+    for x in range(self.ogrid.shape[1]):
+      for y in range(self.ogrid.shape[0]):
+        if self.ogrid[y, y] > 10:
+          real_x = x * self.resolution + self.origin.position.x
+          real_y = y * self.resolution + self.origin.position.y
+          self.walls.append([real_x, real_y])
+    plt.plot([x[0] for x in self.walls], [x[1] for x in self.walls], ",")
+    plt.show()
     # main loop
-    self.run_find_ap()
+    #self.run_find_ap()
   def run_find_ap(self):
     # parameters
     self.local_radius = 100.0
@@ -366,6 +377,7 @@ class WifiIM:
     data["rssi_log"] = self.rssi_log
     data["state_log"] = self.state_log
     data["model_log"] = self.model_log
+    data["walls"] = self.walls
     xy = [[pose[0].to_time(), pose[1].position.x, pose[1].position.y] for pose in self.pose_log]
     r = [[rssi[0].to_time(), rssi[1]] for rssi in self.rssi_log]
     data["xyr"] = self.interpolate(xy, r)
