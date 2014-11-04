@@ -119,15 +119,15 @@ class WifiIM:
     self.run_find_ap()
   def run_find_ap(self):
     # parameters
-    self.local_radius = 100.0
+    self.local_radius = 5.0
     self.t_12 = 5
     self.stepwidth = 1.0
     self.error_thresh = 3.0
     # model
-#    model = ScaledModel(FNN(5)) 
-#    self.model_name = "fnn 5"
-    model = ScaledModel(SVR(C=1e-1))
-    self.model_name = "svr c=1e-1"
+    model = ScaledModel(FNN(10)) 
+    self.model_name = "fnn 10"
+#    model = ScaledModel(SVR(C=1e-1))
+#    self.model_name = "svr c=1e-1"
 #    model = Ridge()
 #    self.model_name = "ridge"
 #    model = KNeighborsRegressor(n_neighbors=500, weights="distance") 
@@ -168,15 +168,18 @@ class WifiIM:
         xy = [[pose[0].to_time(), pose[1].position.x, pose[1].position.y] for pose in self.pose_log]
         r = [[rssi[0].to_time(), rssi[1]] for rssi in self.rssi_log]
         self.xyr = self.interpolate(xy, r)
-        # shuffle for better backprop performance and use max 10000 samples
-        if len(self.xyr) <= 10000:
-          self.xyr_r = [self.xyr[i] for i in np.random.choice(len(self.xyr), len(self.xyr), replace=False)]
-        else:
-          self.xyr_r = [self.xyr[i] for i in np.random.choice(len(self.xyr), 10000, replace=False)]
         # find relevant data and fit data
         selector.fit([[x, y] for t, x, y, r in self.xyr_r], [r for t, x, y, r in self.xyr_r])
         dist, ind = selector.radius_neighbors([self.pose.pose.position.x, self.pose.pose.position.y], radius=self.local_radius)
-        model.fit([[self.xyr_r[idx][1], self.xyr_r[idx][2]] for idx in ind[0]], [self.xyr_r[idx][3] for idx in ind[0]])
+        self.xyr_r = [self.xyr[idx] for idx in ind[0]]
+        # shuffle and only use 10000 samples
+        if len(self.xyr_r) < 10000:
+          np.random.shuffle(self.xyr_r)
+        else:
+          xyr_temp = [self.xyr_r[idx] for idx in np.choice(len(self.xyr_r), 10000, replace=False)]
+          self.xyr_r = xyr_temp
+        # fit
+        model.fit([[x,y] for t,x,y,r in self.xyr_r], [r for t,x,y,r in self.xyr_r])
         print "xyr", len(self.xyr), "and", len(ind[0]), "used"
       # find new search direction
       # epsilon = 0.9*exp(-alpha*n_loop)+0.1 so that epsilon = 0.5 at self.t_12
