@@ -94,6 +94,7 @@ class WifiIM:
     self.state_log = []
     self.model_log = []
     self.xyr = []
+    self.xyr_r = []
     # msg stuff
     self.msg_queue = Queue.Queue()
     rospy.Subscriber("/amcl_pose", PoseWithCovarianceStamped, self.callback_pos)
@@ -118,17 +119,17 @@ class WifiIM:
     self.run_find_ap()
   def run_find_ap(self):
     # parameters
-    self.local_radius = 5.0
+    self.local_radius = 100.0
     self.t_12 = 5
     self.stepwidth = 1.0
     self.error_thresh = 3.0
     # model
 #    model = ScaledModel(FNN(5)) 
 #    self.model_name = "fnn 5"
-#    model = ScaledModel(SVR(C=1e-1))
-#    self.model_name = "svr c=1e-1"
-    model = Ridge()
-    self.model_name = "ridge"
+    model = ScaledModel(SVR(C=1e-1))
+    self.model_name = "svr c=1e-1"
+#    model = Ridge()
+#    self.model_name = "ridge"
 #    model = KNeighborsRegressor(n_neighbors=500, weights="distance") 
 #    self.model_name = "knn 500 distance"
 #    model = KernelModel(Ridge())
@@ -167,12 +168,15 @@ class WifiIM:
         xy = [[pose[0].to_time(), pose[1].position.x, pose[1].position.y] for pose in self.pose_log]
         r = [[rssi[0].to_time(), rssi[1]] for rssi in self.rssi_log]
         self.xyr = self.interpolate(xy, r)
-        # shuffle for better backprop performance
-        random.shuffle(self.xyr)
+        # shuffle for better backprop performance and use max 10000 samples
+        if len(self.xyr) <= 10000:
+          self.xyr_r = [self.xyr[i] for i in np.random.choice(len(self.xyr), len(self.xyr), replace=False)]
+        else:
+          self.xyr_r = [self.xyr[i] for i in np.random.choice(len(self.xyr), 10000, replace=False)]
         # find relevant data and fit data
-        selector.fit([[x, y] for t, x, y, r in self.xyr], [r for t, x, y, r in self.xyr])
+        selector.fit([[x, y] for t, x, y, r in self.xyr_r], [r for t, x, y, r in self.xyr_r])
         dist, ind = selector.radius_neighbors([self.pose.pose.position.x, self.pose.pose.position.y], radius=self.local_radius)
-        model.fit([[self.xyr[idx][1], self.xyr[idx][2]] for idx in ind[0]], [self.xyr[idx][3] for idx in ind[0]])
+        model.fit([[self.xyr_r[idx][1], self.xyr_r[idx][2]] for idx in ind[0]], [self.xyr_r[idx][3] for idx in ind[0]])
         print "xyr", len(self.xyr), "and", len(ind[0]), "used"
       # find new search direction
       # epsilon = 0.9*exp(-alpha*n_loop)+0.1 so that epsilon = 0.5 at self.t_12
@@ -235,7 +239,7 @@ class WifiIM:
       plt.title("model")
       plt.pcolormesh(xx, yy, rssi_plot.T, cmap=plt.get_cmap("gnuplot2"), vmin=-80, vmax=-20)
       plt.plot([x for x,y in self.walls], [y for x,y in self.walls], "k,")
-      plt.plot([x for t, x, y, r in self.xyr], [y for t, x, y, r in self.xyr], ".", color="#39FF14")
+      plt.plot([x for t, x, y, r in self.xyr], [y for t, x, y, r in self.xyr], "-", color="#39FF14")
       plt.plot(self.pose.pose.position.x, self.pose.pose.position.y, "r.")
       plt.plot(goal[0], goal[1], "r*")
       plt.xticks([-10, -5, 0])
@@ -249,7 +253,7 @@ class WifiIM:
       plt.title("hexbin")
       plt.hexbin([x for t, x, y, r in self.xyr], [y for t, x, y, r in self.xyr], [r for t, x, y, r in self.xyr], gridsize=20, cmap=plt.get_cmap("gnuplot2"), vmin=-80, vmax=-20, extent=(min(xx), max(xx), min(yy), max(yy)))
       plt.plot([x for x,y in self.walls], [y for x,y in self.walls], "k,")
-      plt.plot([x for t, x, y, r in self.xyr], [y for t, x, y, r in self.xyr], ".", color="#39FF14")
+      plt.plot([x for t, x, y, r in self.xyr], [y for t, x, y, r in self.xyr], "-", color="#39FF14")
       plt.plot(self.pose.pose.position.x, self.pose.pose.position.y, "r.")
       plt.plot(goal[0], goal[1], "r*")
       plt.xticks([-10, -5, 0])
