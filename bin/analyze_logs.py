@@ -36,16 +36,21 @@ if __name__ == "__main__":
   rcParams["axes.labelsize"] = 8
   rcParams["axes.titlesize"] = 8
 
-  plot_num = 0
   for filename in args.filenames:
-    plot_num = plot_num + 1
     with open(filename, "rb") as file_desc:
       data = cPickle.load(file_desc)
-      plt.subplot(2, len(args.filenames), plot_num)
-      plt.title(data["parameters"]["model_name"])
+      plt.clf()
+      gs = gridspec.GridSpec(3, 1)
+      
+      plt.subplot(gs[:2, 0])
       plt.plot([x for x,y in data["walls"]], [y for x,y in data["walls"]], "k,")
       plt.plot([x for t,x,y,r in data["xyr"]], [y for t,x,y,r in data["xyr"]], "b-")
-      plt.subplot(2, len(args.filenames), len(args.filenames)+plot_num)
+      plt.plot(0.1, -1.2, "*r")
+      plt.xticks([-10, -5, 0])
+      plt.gca().set_xlabel("x [m]")
+      plt.gca().set_ylabel("y [m]")
+      
+      plt.subplot(gs[2,0])
       lengths = [math.hypot(data["xyr"][i][1] - data["xyr"][i-1][1], data["xyr"][i][2]-data["xyr"][i][2]) for i in range(1, len(data["xyr"]))]
       dist = [0.0]
       for length in lengths:
@@ -56,5 +61,6 @@ if __name__ == "__main__":
       plt.gca().set_ylim((-80, -30))
       plt.gca().set_xlabel("distance travelled [m]")
       plt.gca().set_ylabel("rssi [dB]")
-
-  plt.show()
+      
+      plt.gcf().set_size_inches((3, 9))
+      plt.savefig(filename[filename.rindex("/")+1:filename.rindex(".")]+".jpg", dpi=100, bbox_inches="tight")
