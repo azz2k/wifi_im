@@ -27,15 +27,16 @@ def plot(data, time, args):
     except:
       xyr_s = []
       if len(fit_model) > 0:
-        xyr_s = copy.deepcopy([point for point in xyr if point[0] <= fit_model[-1][0]])
-        random.shuffle(xyr_s)
+        xyr_s = [xyr[i] for i in np.random.choice(len(xyr), min(len(xyr), 5000), replace=False)]
+#        xyr_s = copy.deepcopy([point for point in xyr if point[0] <= fit_model[-1][0]])
+#        random.shuffle(xyr_s)
       rssi_plot = np.zeros((len(xx), len(yy)))
       if len(xyr_s) > 0:
-        model = wifi_im.KernelModel(wifi_im.RidgeCV())
+        model = wifi_im.ScaledModel(wifi_im.FNN(100))
         model.fit([point[1:3] for point in xyr_s], [point[3] for point in xyr_s])
         for i in range(len(xx)):
           for j in range(len(yy)):
-          rssi_plot[i, j] = model.predict([[xx[i], yy[j]]])
+            rssi_plot[i, j] = model.predict([[xx[i], yy[j]]])
 
   gs = gridspec.GridSpec(2, 3)
   plt.subplot(gs[:, 0])
