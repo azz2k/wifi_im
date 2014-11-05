@@ -119,13 +119,13 @@ class WifiIM:
     self.run_find_ap()
   def run_find_ap(self):
     # parameters
-    self.local_radius = 5.0
+    self.local_radius = 100.0
     self.t_12 = 5
     self.stepwidth = 1.0
     self.error_thresh = 3.0
     # model
-    model = ScaledModel(KernelModel(FNN(10)))
-    self.model_name = "kernel fnn 10"
+    model = ScaledModel(FNN(100))
+    self.model_name = "fnn 100"
 #    model = ScaledModel(SVR(C=1e-1))
 #    self.model_name = "svr c=1e-1"
 #    model = Ridge()
