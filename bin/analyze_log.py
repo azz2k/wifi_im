@@ -32,7 +32,7 @@ def plot(data, time, args):
 #        random.shuffle(xyr_s)
       rssi_plot = np.zeros((len(xx), len(yy)))
       if len(xyr_s) > 0:
-        model = wifi_im.ScaledModel(wifi_im.FNN(100))
+        model = wifi_im.ScaledModel(wifi_im.FNN([100, 20]))
         model.fit([point[1:3] for point in xyr_s], [point[3] for point in xyr_s])
         for i in range(len(xx)):
           for j in range(len(yy)):
