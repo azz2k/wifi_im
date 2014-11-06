@@ -69,8 +69,9 @@ if __name__ == "__main__":
       plt.gca().set_ylim((-80, -30))
       plt.gca().set_xlabel("distance travelled [m]")
       plt.gca().set_ylabel("rssi [dB]")
-      
-      plt.gcf().set_size_inches((3, 9))
+    
+      plt.gcf().subplots_adjust(hspace=0.3)
+      plt.gcf().set_size_inches((2, 6))
       if not os.path.exists("frames/"+data["parameters"]["model_name"].split(" ")[0]):
         os.makedirs("frames/"+data["parameters"]["model_name"].split(" ")[0])
-      plt.savefig("frames/"+data["parameters"]["model_name"].split(" ")[0]+"/"+filename[filename.rindex("/")+1:filename.rindex(".")]+".jpg", dpi=100, bbox_inches="tight")
+      plt.savefig("frames/"+data["parameters"]["model_name"].split(" ")[0]+"/"+filename[filename.rindex("/")+1:filename.rindex(".")]+".jpg", dpi=150, bbox_inches="tight")
