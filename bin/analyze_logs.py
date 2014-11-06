@@ -71,7 +71,7 @@ if __name__ == "__main__":
       plt.gca().set_ylabel("rssi [dB]")
     
       plt.gcf().subplots_adjust(hspace=0.3)
-      plt.gcf().set_size_inches((2, 6))
+      plt.gcf().set_size_inches((2, 7))
       if not os.path.exists("frames/"+data["parameters"]["model_name"].split(" ")[0]):
         os.makedirs("frames/"+data["parameters"]["model_name"].split(" ")[0])
       plt.savefig("frames/"+data["parameters"]["model_name"].split(" ")[0]+"/"+filename[filename.rindex("/")+1:filename.rindex(".")]+".jpg", dpi=150, bbox_inches="tight")
