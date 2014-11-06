@@ -11,6 +11,7 @@ import argparse
 import copy
 import random
 import wifi_im
+import os
 
 def moving_average(x, y, window_size):
   bin_edges = np.arange(min(x), max(x), window_size)
@@ -33,6 +34,9 @@ if __name__ == "__main__":
   args = parser.parse_args()
   
   goal = [args.goal_x, args.goal_y]
+  
+  if not os.path.exists("frames"):
+    os.makedirs("frames")
   
   rcParams["font.family"] = "serif"
   rcParams["xtick.labelsize"] = 8
@@ -67,4 +71,6 @@ if __name__ == "__main__":
       plt.gca().set_ylabel("rssi [dB]")
       
       plt.gcf().set_size_inches((3, 9))
-      plt.savefig(filename[filename.rindex("/")+1:filename.rindex(".")]+".jpg", dpi=100, bbox_inches="tight")
+      if not os.path.exists("frames/"+data["parameters"]["model_name"].split(" ")[0]):
+        os.makedirs("frames/"+data["parameters"]["model_name"].split(" ")[0])
+      plt.savefig("frames/"+data["parameters"]["model_name"].split(" ")[0]+"/"+filename[filename.rindex("/")+1:filename.rindex(".")]+".jpg", dpi=100, bbox_inches="tight")
