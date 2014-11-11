@@ -54,6 +54,8 @@ if __name__ == "__main__":
       plt.plot([x for x,y in data["walls"]], [y for x,y in data["walls"]], "k,")
       plt.plot([x for t,x,y,r in data["xyr"]], [y for t,x,y,r in data["xyr"]], "b-")
       plt.plot(goal[0], goal[1], "*r")
+      model_updates = [p for t,s,p in data["state_log"] if s == "fit_model"]
+      plt.plot([x for x,y in model_updates], [y for x,y in model_updates], "r.")
       plt.xticks([-10, -5, 0])
       plt.gca().set_xlabel("x [m]")
       plt.gca().set_ylabel("y [m]")
@@ -74,4 +76,7 @@ if __name__ == "__main__":
       plt.gcf().set_size_inches((2, 7))
       if not os.path.exists("frames/"+data["parameters"]["model_name"].split(" ")[0]):
         os.makedirs("frames/"+data["parameters"]["model_name"].split(" ")[0])
-      plt.savefig("frames/"+data["parameters"]["model_name"].split(" ")[0]+"/"+filename[filename.rindex("/")+1:filename.rindex(".")]+".jpg", dpi=150, bbox_inches="tight")
+      if "/" in filename:
+        plt.savefig("frames/"+data["parameters"]["model_name"].split(" ")[0]+"/"+filename[filename.rindex("/")+1:filename.rindex(".")]+".jpg", dpi=150, bbox_inches="tight")
+      else:
+        plt.savefig("frames/"+data["parameters"]["model_name"].split(" ")[0]+"/"+filename[:filename.rindex(".")]+".jpg", dpi=150, bbox_inches="tight")
