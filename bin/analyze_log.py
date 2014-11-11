@@ -17,6 +17,7 @@ def plot(data, time, args):
 
   states = [state for state in data["state_log"] if state[0] < time]
   fit_model = [state for state in states if state[1] == "fit_model"]
+  walls = data["walls"]
 
   if args.model:
     xx = np.linspace(-12, 2, 24)
@@ -42,6 +43,7 @@ def plot(data, time, args):
   plt.subplot(gs[:, 0])
   plt.title("hexbin")
   plt.hexbin([x for t, x, y, r in xyr], [y for t, x, y, r in xyr], [r for t, x, y, r in xyr], gridsize=20, cmap=plt.get_cmap("gnuplot2"), vmin=-80, vmax=-20, extent=(-10, 0, -15, 20))
+  plt.plot([x for x,y in walls], [y for x,y in walls], "k,")
   plt.plot([x for t, x, y, r in xyr], [y for t, x, y, r in xyr], color="#39FF14")
   plt.gca().set_xlim((-12, 2))
   plt.gca().set_xlabel("x [m]")
@@ -53,6 +55,7 @@ def plot(data, time, args):
     plt.subplot(gs[:, 1])
     plt.title("model")
     plt.pcolormesh(xx, yy, rssi_plot.T, cmap=plt.get_cmap("gnuplot2"), vmin=-80, vmax=-20)
+    plt.plot([x for x,y in walls], [y for x,y in walls], "k,")
     plt.plot([x for t, x, y, r in xyr], [y for t, x, y, r in xyr], color="#39FF14")
     plt.gca().set_xlim((-12, 2))
     plt.gca().set_xlabel("x [m]")
