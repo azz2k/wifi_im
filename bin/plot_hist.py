@@ -30,10 +30,12 @@ if __name__ == "__main__":
   for filename in args.filenames:
     with open(filename, "rb") as file_desc:
       data = cPickle.load(file_desc)
+      print len(data["xyr"])
       if "walls" in data.keys():
         walls = data["walls"]
       xyr.extend(data["xyr"])
-  plt.hexbin([x for t, x, y, r in xyr], [y for t, x, y, r in xyr], [r for t, x, y, r in xyr], gridsize=40, cmap=plt.get_cmap("gnuplot2"), vmin=-80, vmax=-20, extent=(-12, 2, -15, 20))
+  plt.title(str(len(xyr)) + " samples")
+  plt.hexbin([x for t, x, y, r in xyr], [y for t, x, y, r in xyr], [r for t, x, y, r in xyr], gridsize=70, cmap=plt.get_cmap("gnuplot2"), vmin=-80, vmax=-20, extent=(-12, 2, -15, 20))
   plt.plot([x for x,y in walls], [y for x,y in walls], "k,")
   plt.xticks([-10, -5, 0])
   plt.gca().set_xlim((-12, 2))
@@ -45,7 +47,8 @@ if __name__ == "__main__":
   plt.gcf().set_size_inches((4, 8))
   plt.savefig("rssi_hexbin.pdf", bbox_inches="tight")
   plt.clf()
-  plt.hexbin([y for t, x, y, r in xyr], [x for t, x, y, r in xyr], [r for t, x, y, r in xyr], gridsize=40, cmap=plt.get_cmap("gnuplot2"), vmin=-80, vmax=-20, extent=(-15, 20, -12, 2))
+  plt.title(str(len(xyr)) + " samples")
+  plt.hexbin([y for t, x, y, r in xyr], [x for t, x, y, r in xyr], [r for t, x, y, r in xyr], gridsize=70, cmap=plt.get_cmap("gnuplot2"), vmin=-80, vmax=-20, extent=(-15, 20, -12, 2))
   plt.plot([y for x,y in walls], [x for x,y in walls], "k,")
   plt.yticks([-10, -5, 0])
   plt.gca().set_ylim((-12, 2))
