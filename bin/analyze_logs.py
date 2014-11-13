@@ -22,7 +22,8 @@ def moving_average(x, y, window_size):
   xx = [(bin_edges[i-1] + bin_edges[i])/2.0 for i in range(1, len(bin_edges))]
   xx.append((bin_edges[-1]+max(x))/2.0)
   yy = [np.mean(contents) for contents in bins]
-  return xx, yy
+  noise = [np.std(contents-np.mean(contents)) for contents in bins]
+  return xx, yy, noise
 
 
 if __name__ == "__main__":
@@ -44,6 +45,8 @@ if __name__ == "__main__":
   rcParams["axes.labelsize"] = 8
   rcParams["axes.titlesize"] = 8
 
+  noise = []
+
   for filename in args.filenames:
     with open(filename, "rb") as file_desc:
       data = cPickle.load(file_desc)
@@ -55,7 +58,7 @@ if __name__ == "__main__":
       plt.plot([x for t,x,y,r in data["xyr"]], [y for t,x,y,r in data["xyr"]], "b-")
       plt.plot(goal[0], goal[1], "*r")
       model_updates = [p for t,s,p in data["state_log"] if s == "fit_model"]
-      plt.plot([x for x,y in model_updates], [y for x,y in model_updates], "r.")
+      plt.plot([x for x,y in model_updates], [y for x,y in model_updates], "r.", ms=3.0)
       plt.xticks([-10, -5, 0])
       plt.gca().set_xlabel("x [m]")
       plt.gca().set_ylabel("y [m]")
@@ -65,7 +68,8 @@ if __name__ == "__main__":
       dist = [0.0]
       for length in lengths:
         dist.append(dist[-1]+length)
-      xx, yy = moving_average(dist, [r for t,x,y,r in data["xyr"]], 1.0)
+      xx, yy, n = moving_average(dist, [r for t,x,y,r in data["xyr"]], 1.0)
+      noise.extend(n)
       plt.plot(dist, [r for t,x,y,r in data["xyr"]], "b,")
       plt.plot(xx, yy, "k-")
       plt.gca().set_ylim((-80, -30))
@@ -80,3 +84,4 @@ if __name__ == "__main__":
         plt.savefig("frames/"+data["parameters"]["model_name"].split(" ")[0]+"/"+filename[filename.rindex("/")+1:filename.rindex(".")]+".jpg", dpi=150, bbox_inches="tight")
       else:
         plt.savefig("frames/"+data["parameters"]["model_name"].split(" ")[0]+"/"+filename[:filename.rindex(".")]+".jpg", dpi=150, bbox_inches="tight")
+  print "average noise:", np.mean(noise)
