@@ -297,10 +297,25 @@ class WifiIM:
         pose.pose = data[1].pose.pose
         self.pose = pose
       if data[0] == "rssi":
-        for rssi in data[1].data:
-          if rssi.their_mac_addr == self.target_mac:
-            if len([mes for mes in rssi.rssi if mes < 0]) > 0:
-              self.rssi_log.append([data[1].header.stamp, np.mean([mes for mes in rssi.rssi if mes < 0])])
+        if self.target_mac != "":
+          for rssi in data[1].data:
+            if rssi.their_mac_addr == self.target_mac:
+              if len([mes for mes in rssi.rssi if mes < 0]) > 0:
+                self.rssi_log.append([data[1].header.stamp, np.mean([mes for mes in rssi.rssi if mes < 0])])
+        else:
+          mac_addrs = [rssi.their_mac_addr for rssi in data[1].data]
+          if self.target_mac1 in mac_addrs and self.target_mac2 in mac_addrs:
+            rssi1 = 0
+            rssi2 = 0
+            for rssi in data[1].data:
+              if rssi.their_mac_addr == self.target_mac1 or rssi.their_mac_addr == self.target_mac2:
+                if len([mes for mes in rssi.rssi if mes < 0]) > 0:
+                  mean = np.mean([mes for mes in rssi.rssi if mes < 0])
+                  if rssi.their_mac_addr == self.target_mac1:
+                    rssi1 = mean
+                  else:
+                    rssi2 = mean
+            self.rssi_log.append([data[1].header.stamp, -abs(rssi1-rssi1) - abs(rssi1+rssi2)])
   def interpolate(self, xy, rssi):
     xy = sorted(xy, key=lambda x:x[0])
     r = sorted(rssi, key=lambda x:x[0])
