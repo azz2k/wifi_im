@@ -104,6 +104,8 @@ class WifiIM:
     self.pose = Pose()
     # data containers
     self.rssi_log = []
+    self.rssi1_log = []
+    self.rssi2_log = []
     self.pose_log = []
     self.state_log = []
     self.model_log = []
@@ -315,8 +317,10 @@ class WifiIM:
                   mean = np.mean([mes for mes in rssi.rssi if mes < 0])
                   if rssi.their_mac_addr == self.target_mac1:
                     rssi1 = mean
+                    self.rssi1_log.append([data[1].header.stamp, mean])
                   else:
                     rssi2 = mean
+                    self.rssi2_log.append([data[1].header.stamp, mean])
             self.rssi_log.append([data[1].header.stamp, -abs(rssi1-rssi2) - abs(rssi1+rssi2)])
   def interpolate(self, xy, rssi):
     xy = sorted(xy, key=lambda x:x[0])
@@ -411,6 +415,8 @@ class WifiIM:
     data["parameters"]["model_name"] = self.model_name
     data["pose_log"] = self.pose_log
     data["rssi_log"] = self.rssi_log
+    data["rssi1_log"] = self.rssi1_log
+    data["rssi2_log"] = self.rssi2_log
     data["state_log"] = self.state_log
     data["model_log"] = self.model_log
     data["walls"] = self.walls
