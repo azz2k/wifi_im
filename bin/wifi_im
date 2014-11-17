@@ -86,6 +86,11 @@ class WifiIM:
     rospy.init_node("wifi_im", anonymous=True)
     # parameter
     self.target_mac = rospy.get_param("~target_mac", "")
+    self.target_mac1 = rospy.get_param("~target_mac1", "")
+    self.target_mac2 = rospy.get_param("~target_mac2", "")
+    if self.target_mac != "":
+      self.target_mac1 = ""
+      self.target_mac2 = ""
     # misc variables
     self.pose = Pose()
     # data containers
