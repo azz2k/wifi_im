@@ -317,7 +317,7 @@ class WifiIM:
                     rssi1 = mean
                   else:
                     rssi2 = mean
-            self.rssi_log.append([data[1].header.stamp, -abs(rssi1-rssi1) - abs(rssi1+rssi2)])
+            self.rssi_log.append([data[1].header.stamp, -abs(rssi1-rssi2) - abs(rssi1+rssi2)])
   def interpolate(self, xy, rssi):
     xy = sorted(xy, key=lambda x:x[0])
     r = sorted(rssi, key=lambda x:x[0])
