@@ -19,6 +19,7 @@ import Queue
 import random
 import math
 import cPickle
+import time
 # scikit learn
 from sklearn.svm import SVR
 from sklearn.neighbors import KNeighborsRegressor
@@ -141,7 +142,9 @@ class WifiIM:
     self.error_thresh = 3.0
     # model
     model = ScaledModel(FNN(100))
-    self.model_name = "fnn 100"
+    self.model_name = "fnn 100 (3 learn)"
+#    model = ScaledModel(FNN(1))
+#    self.model_name = "dummy fnn 1"
 #    model = ScaledModel(SVR(C=1e-1))
 #    self.model_name = "svr c=1e-1"
 #    model = Ridge()
@@ -254,6 +257,21 @@ class WifiIM:
       print "plotting"
       plt.clf()
       plt.suptitle(self.target_mac)
+      plt.subplot(122)
+      plt.title("hexbin")
+#      plt.hexbin([x for t, x, y, r in self.xyr], [y for t, x, y, r in self.xyr], [r for t, x, y, r in self.xyr], gridsize=20, cmap=plt.get_cmap("gnuplot2"), vmin=-80, vmax=-20, extent=(min(xx), max(xx), min(yy), max(yy)))
+      hbins = plt.hexbin([x for t, x, y, r in self.xyr], [y for t, x, y, r in self.xyr], [r for t, x, y, r in self.xyr], gridsize=20, cmap=plt.get_cmap("gnuplot2"), extent=(min(xx), max(xx), min(yy), max(yy)))
+      plt.plot([x for x,y in self.walls], [y for x,y in self.walls], "k,")
+      plt.plot([x for t, x, y, r in self.xyr], [y for t, x, y, r in self.xyr], "-", color="#39FF14")
+      plt.plot(self.pose.pose.position.x, self.pose.pose.position.y, "r.")
+      plt.plot(goal[0], goal[1], "r*")
+      plt.xticks([-10, -5, 0])
+      plt.gca().set_xlim((min(xx), max(xx)))
+      plt.gca().set_xlabel("x [m]")
+      plt.gca().set_ylim((min(yy), max(yy)))
+      plt.gca().set_ylabel("y [m]")
+      cbar = plt.colorbar()
+      cbar.set_label("mean rssi [dB]")
       plt.subplot(121)
       plt.title("model")
 #      plt.pcolormesh(xx, yy, rssi_plot.T, cmap=plt.get_cmap("gnuplot2"), vmin=-80, vmax=-20)
@@ -268,26 +286,13 @@ class WifiIM:
       plt.gca().set_ylim((min(yy), max(yy)))
       plt.gca().set_ylabel("y [m]")
       cbar = plt.colorbar()
-      cbar.set_label("mean rssi [dB]")
-      plt.subplot(122)
-      plt.title("hexbin")
-#      plt.hexbin([x for t, x, y, r in self.xyr], [y for t, x, y, r in self.xyr], [r for t, x, y, r in self.xyr], gridsize=20, cmap=plt.get_cmap("gnuplot2"), vmin=-80, vmax=-20, extent=(min(xx), max(xx), min(yy), max(yy)))
-      plt.hexbin([x for t, x, y, r in self.xyr], [y for t, x, y, r in self.xyr], [r for t, x, y, r in self.xyr], gridsize=20, cmap=plt.get_cmap("gnuplot2"), extent=(min(xx), max(xx), min(yy), max(yy)))
-      plt.plot([x for x,y in self.walls], [y for x,y in self.walls], "k,")
-      plt.plot([x for t, x, y, r in self.xyr], [y for t, x, y, r in self.xyr], "-", color="#39FF14")
-      plt.plot(self.pose.pose.position.x, self.pose.pose.position.y, "r.")
-      plt.plot(goal[0], goal[1], "r*")
-      plt.xticks([-10, -5, 0])
-      plt.gca().set_xlim((min(xx), max(xx)))
-      plt.gca().set_xlabel("x [m]")
-      plt.gca().set_ylim((min(yy), max(yy)))
-      plt.gca().set_ylabel("y [m]")
-      cbar = plt.colorbar()
+      plt.clim(np.min(hbins.get_array()), np.max(hbins.get_array()))
       cbar.set_label("mean rssi [dB]")
       plt.draw()
       # moving
       yaw = math.pi-math.atan2(goal[1] - self.pose.pose.position.y, goal[0] - self.pose.pose.position.x)
       self.goto_real(goal[0], goal[1], yaw)
+#      time.sleep(60)
       # logging
       print "logging"
       self.dump_log()
@@ -322,6 +327,9 @@ class WifiIM:
                     rssi2 = mean
                     self.rssi2_log.append([data[1].header.stamp, mean])
             self.rssi_log.append([data[1].header.stamp, -abs(rssi1-rssi2) - abs(rssi1+rssi2)])
+          else:
+            pass
+#            print "discard"
   def interpolate(self, xy, rssi):
     xy = sorted(xy, key=lambda x:x[0])
     r = sorted(rssi, key=lambda x:x[0])
