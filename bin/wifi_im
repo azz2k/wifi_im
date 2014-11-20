@@ -60,7 +60,7 @@ class KernelModel:
 class FNN:
   def __init__(self, n_hidden=[5, 5]):
     self.n_hidden=n_hidden
-  def fit(self, x, y):
+  def fit(self, x, y, epochs=3):
     if type(self.n_hidden) != list:
       self.nn = buildNetwork(len(x[0]), self.n_hidden, 1, bias=True)
     else:
@@ -74,7 +74,7 @@ class FNN:
     for xx, yy in zip(x, y):
       self.ds.addSample(xx, [yy])
     self.trainer = BackpropTrainer(self.nn, dataset=self.ds, momentum=0.1)
-    self.trainer.trainEpochs(3)
+    self.trainer.trainEpochs(epochs)
   def predict(self, x):
     if len(x) == 1:
       return self.nn.activate(x[0])
