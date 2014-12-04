@@ -56,7 +56,8 @@ if __name__ == "__main__":
       plt.subplot(gs[:2, 0])
       plt.plot([x for x,y in data["walls"]], [y for x,y in data["walls"]], "k,")
       plt.plot([x for t,x,y,r in data["xyr"]], [y for t,x,y,r in data["xyr"]], "b-")
-      plt.plot(goal[0], goal[1], "*r")
+      plt.plot(data["xyr"][0][1], data["xyr"][0][2], "rx", ms=7.0, mew=1.0)
+      plt.plot(goal[0], goal[1], "r*")
       model_updates = [p for t,s,p in data["state_log"] if s == "fit_model"]
       plt.plot([x for x,y in model_updates], [y for x,y in model_updates], "r.", ms=3.0)
       plt.xticks([-10, -5, 0])
